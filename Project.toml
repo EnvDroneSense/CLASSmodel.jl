@@ -1,7 +1,7 @@
 name = "CLASSmodel"
 uuid = "352a7eb9-077e-491c-88d7-8ea6e43bd0f0"
 authors = ["Thomas Struys"]
-version = "1.0.0-DEV"
+version = "0.1.0-DEV"
 
 [compat]
 julia = "1.10"

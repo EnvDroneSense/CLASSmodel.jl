@@ -4,3 +4,6 @@
 /Manifest*.toml
 /docs/Manifest*.toml
 /docs/build/
+
+# Python reference output (made by ../tools/make_reference.py, not tracked)
+/test/reference/
