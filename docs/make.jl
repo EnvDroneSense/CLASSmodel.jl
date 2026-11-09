@@ -5,6 +5,7 @@ DocMeta.setdocmeta!(CLASSmodel, :DocTestSetup, :(using CLASSmodel); recursive=tr
 
 makedocs(;
     modules=[CLASSmodel],
+    checkdocs=:exports,
     authors="Thomas Struys",
     sitename="CLASSmodel.jl",
     format=Documenter.HTML(;

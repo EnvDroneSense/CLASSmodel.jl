@@ -11,10 +11,25 @@
 # WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 # PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
+"""
+    CLASSmodel
+
+CLASS, the Chemistry Land-surface Atmosphere Soil Slab model: a mixed-layer model of the
+convective boundary layer coupled to a land surface.
+
+```julia
+using CLASSmodel
+out = run_model(ModelInput(; runtime = 12 * 3600))   # a table with one column per variable
+out.h                                                # boundary-layer height [m]
+```
+
+For a run step by step use [`init_model`](@ref) and [`step!`](@ref).
+"""
 module CLASSmodel
 
 export ModelInput, PhysicalConstants, AGsParameters, PlantType, C3, C4, validate
 export ModelOutput, run_model
+export ModelState, init_model, step!
 
 include("input.jl")
 include("state.jl")

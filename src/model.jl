@@ -137,7 +137,8 @@ end
 """
     step!(s::ModelState)
 
-Advance the model by one time step: [`compute!`](@ref) then [`integrate!`](@ref).
+Advance the model by one time step: compute the components, then integrate the
+land surface and the mixed layer. The diagnostics of the step are left in `s`.
 """
 function step!(s::ModelState)
     compute!(s)
