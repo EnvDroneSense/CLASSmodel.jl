@@ -147,7 +147,6 @@ mutable struct ModelState{T<:AbstractFloat}
 end
 
 # Component functions. They do nothing yet; each is replaced when its component is added.
-ags!(s::ModelState) = nothing
 cumulus!(s::ModelState) = nothing
 
 """

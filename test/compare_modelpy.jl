@@ -4,7 +4,17 @@
 using TOML
 
 const REFERENCE = joinpath(@__DIR__, "reference", "cases.toml")
-const IMPLEMENTED = ("ml", "ml_wind_shear_fixft", "rad", "sl", "ls_js")   # cases compared in full; grows with each step
+const IMPLEMENTED = ("ml", "ml_wind_shear_fixft", "rad", "sl", "ls_js", "ls_ags_c3", "ls_ags_c4")   # cases compared in full; grows with each step
+
+# Every element within rtol of the reference, or within `atol_frac` of the largest value of
+# the column (for values that pass through zero, where a difference of two large numbers
+# loses relative precision); equal NaN patterns. (isapprox on vectors would compare norms.)
+function elementwise_close(a, b, rtol, atol_frac)
+    atol = atol_frac * maximum(abs, filter(!isnan, b); init=0.0)
+    return all(zip(a, b)) do (x, y)
+        isnan(x) || isnan(y) ? isnan(x) && isnan(y) : abs(x - y) <= max(rtol * max(abs(x), abs(y)), atol)
+    end
+end
 
 @testset "modelpy reference" begin
     if isfile(REFERENCE)
@@ -25,8 +35,8 @@ const IMPLEMENTED = ("ml", "ml_wind_shear_fixft", "rad", "sl", "ls_js")   # case
                 for (j, n) in enumerate(names)
                     # L: the Newton iteration stops at |dL| < 1 mm, so round-off can add or skip
                     # one last step (about 1e-8 m near neutral, where |L| is large)
-                    rtol = n == :L ? 1e-10 : 1e-12
-                    @test isapprox(getfield(out, n), getindex.(ref, j); rtol, nans=true)
+                    rtol, atol_frac = n == :L ? (1e-10, 0.0) : (1e-12, 1e-13)
+                    @test elementwise_close(getfield(out, n), getindex.(ref, j), rtol, atol_frac)
                 end
             end
         end
