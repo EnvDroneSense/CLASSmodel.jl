@@ -21,6 +21,7 @@ include("state.jl")
 include("mixed_layer.jl")
 include("radiation.jl")
 include("surface_layer.jl")
+include("land_surface.jl")
 include("model.jl")
 
 end

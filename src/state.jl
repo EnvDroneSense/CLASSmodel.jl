@@ -101,6 +101,12 @@ end
 "State of the land surface: resistance and surface fluxes."
 Base.@kwdef mutable struct LandSurfaceState{T<:AbstractFloat}
     Ts::T = NaN             # surface temperature [K]
+    Tsoil::T = NaN          # temperature of the top soil layer [K]
+    wg::T = NaN             # volumetric water content of the top soil layer [m3 m-3]
+    Wl::T = NaN             # equivalent water layer depth on wet vegetation [m]
+    Tsoiltend::T = NaN      # tendency of Tsoil [K s-1]
+    wgtend::T = NaN         # tendency of wg [m3 m-3 s-1]
+    Wltend::T = NaN         # tendency of Wl [m s-1]
     rs::T = 1e6             # resistance of transpiration [s m-1]
     H::T = NaN              # sensible heat flux [W m-2]
     LE::T = NaN             # evapotranspiration [W m-2]
@@ -141,9 +147,8 @@ mutable struct ModelState{T<:AbstractFloat}
 end
 
 # Component functions. They do nothing yet; each is replaced when its component is added.
-land_surface!(s::ModelState) = nothing
+ags!(s::ModelState) = nothing
 cumulus!(s::ModelState) = nothing
-integrate_land_surface!(s::ModelState) = nothing
 
 """
     init_model(input; constants = PhysicalConstants{T}()) -> ModelState
@@ -159,7 +164,7 @@ function init_model(x::ModelInput{T}; constants::PhysicalConstants{T}=PhysicalCo
         WindState{T}(; u=x.u, du=x.du, v=x.v, dv=x.dv),
         RadiationState{T}(; Q=x.Q),
         SurfaceLayerState{T}(; ustar=x.ustar, thetasurf=x.theta),
-        LandSurfaceState{T}(; Ts=x.Ts),
+        LandSurfaceState{T}(; Ts=x.Ts, Tsoil=x.Tsoil, wg=x.wg, Wl=x.Wl),
         CumulusState{T}(; dz_h=x.dz_h),
         0,
     )

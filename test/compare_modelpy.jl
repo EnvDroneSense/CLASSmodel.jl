@@ -4,7 +4,7 @@
 using TOML
 
 const REFERENCE = joinpath(@__DIR__, "reference", "cases.toml")
-const IMPLEMENTED = ("ml", "ml_wind_shear_fixft", "rad", "sl")   # cases compared in full; grows with each step
+const IMPLEMENTED = ("ml", "ml_wind_shear_fixft", "rad", "sl", "ls_js")   # cases compared in full; grows with each step
 
 @testset "modelpy reference" begin
     if isfile(REFERENCE)
@@ -23,7 +23,10 @@ const IMPLEMENTED = ("ml", "ml_wind_shear_fixft", "rad", "sl")   # cases compare
             # all columns, for the cases whose physics is implemented
             if name in IMPLEMENTED
                 for (j, n) in enumerate(names)
-                    @test isapprox(getfield(out, n), getindex.(ref, j); rtol=1e-12, nans=true)
+                    # L: the Newton iteration stops at |dL| < 1 mm, so round-off can add or skip
+                    # one last step (about 1e-8 m near neutral, where |L| is large)
+                    rtol = n == :L ? 1e-10 : 1e-12
+                    @test isapprox(getfield(out, n), getindex.(ref, j); rtol, nans=true)
                 end
             end
         end
