@@ -19,6 +19,7 @@ export ModelOutput, run_model
 include("input.jl")
 include("state.jl")
 include("mixed_layer.jl")
+include("radiation.jl")
 include("model.jl")
 
 end

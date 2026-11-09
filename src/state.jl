@@ -100,6 +100,7 @@ end
 
 "State of the land surface: resistance and surface fluxes."
 Base.@kwdef mutable struct LandSurfaceState{T<:AbstractFloat}
+    Ts::T = NaN             # surface temperature [K]
     rs::T = 1e6             # resistance of transpiration [s m-1]
     H::T = NaN              # sensible heat flux [W m-2]
     LE::T = NaN             # evapotranspiration [W m-2]
@@ -140,7 +141,6 @@ mutable struct ModelState{T<:AbstractFloat}
 end
 
 # Component functions. They do nothing yet; each is replaced when its component is added.
-radiation!(s::ModelState) = nothing
 surface_layer!(s::ModelState) = nothing
 land_surface!(s::ModelState) = nothing
 cumulus!(s::ModelState) = nothing
@@ -160,7 +160,7 @@ function init_model(x::ModelInput{T}; constants::PhysicalConstants{T}=PhysicalCo
         WindState{T}(; u=x.u, du=x.du, v=x.v, dv=x.dv),
         RadiationState{T}(; Q=x.Q),
         SurfaceLayerState{T}(; ustar=x.ustar, thetasurf=x.theta),
-        LandSurfaceState{T}(),
+        LandSurfaceState{T}(; Ts=x.Ts),
         CumulusState{T}(; dz_h=x.dz_h),
         0,
     )
