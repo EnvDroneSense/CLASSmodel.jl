@@ -60,7 +60,7 @@ function surface_layer!(s::ModelState)
     qsatsurf = qsat(sl.thetasurf, x.Ps)
     cq = (1 + sl.Cs * ueff * ls.rs)^-1
     sl.qsurf = (1 - cq) * ml.q + cq * qsatsurf
-    sl.thetavsurf = sl.thetasurf * (1 + 0.61 * sl.qsurf)
+    sl.thetavsurf = sl.thetasurf * (1 + VIRT * sl.qsurf)
 
     zsl = 0.1 * ml.h
     sl.Rib = min(c.g / ml.thetav * zsl * (ml.thetav - sl.thetavsurf) / ueff^2, 0.2)
@@ -83,6 +83,6 @@ function surface_layer!(s::ModelState)
     sl.u2m = -sl.uw / sl.ustar / c.k * fm2
     sl.v2m = -sl.vw / sl.ustar / c.k * fm2
     sl.esat2m = esat(sl.T2m)
-    sl.e2m = sl.q2m * x.Ps / 0.622
+    sl.e2m = sl.q2m * x.Ps / ε
     return nothing
 end

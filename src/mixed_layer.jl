@@ -10,9 +10,9 @@ from `h` at the first step and otherwise continues from the previous value.
 function statistics!(s::ModelState)
     x, c, ml = s.input, s.constants, s.mixed_layer
 
-    ml.thetav = ml.theta + 0.61 * ml.theta * ml.q
-    ml.wthetav = ml.wtheta + 0.61 * ml.theta * ml.wq
-    ml.dthetav = (ml.theta + ml.dtheta) * (1 + 0.61 * (ml.q + ml.dq)) - ml.theta * (1 + 0.61 * ml.q)
+    ml.thetav = ml.theta + VIRT * ml.theta * ml.q
+    ml.wthetav = ml.wtheta + VIRT * ml.theta * ml.wq
+    ml.dthetav = (ml.theta + ml.dtheta) * (1 + VIRT * (ml.q + ml.dq)) - ml.theta * (1 + VIRT * ml.q)
 
     ml.P_h = x.Ps - c.rho * c.g * ml.h
     ml.T_h = ml.theta - c.g / c.cp * ml.h
@@ -39,6 +39,15 @@ function statistics!(s::ModelState)
     return s
 end
 
+# Surface momentum fluxes from the friction velocity `ustar` and the wind direction, for
+# runs without the surface layer.
+function prescribed_stress!(s::ModelState)
+    w, sl = s.wind, s.surface_layer
+    sl.uw = -sign(w.u) * sqrt(sl.ustar^4 / (w.v^2 / w.u^2 + 1))
+    sl.vw = -sign(w.v) * sqrt(sl.ustar^4 / (w.u^2 / w.v^2 + 1))
+    return nothing
+end
+
 """
     mixed_layer!(s::ModelState)
 
@@ -48,23 +57,11 @@ momentum fluxes follow from `ustar` and the wind direction.
 function mixed_layer!(s::ModelState)
     x, c, ml, w, sl, cu = s.input, s.constants, s.mixed_layer, s.wind, s.surface_layer, s.cumulus
 
-    if !x.sw_sl
-        sl.uw = -sign(w.u) * sqrt(sl.ustar^4 / (w.v^2 / w.u^2 + 1))
-        sl.vw = -sign(w.v) * sqrt(sl.ustar^4 / (w.u^2 / w.v^2 + 1))
-    end
+    x.sw_sl || prescribed_stress!(s)
 
     ml.ws = -x.divU * ml.h
-
-    # compensation that keeps the free troposphere fixed under subsidence
-    if x.sw_fixft
-        w_th_ft = x.gammatheta * ml.ws
-        w_q_ft = x.gammaq * ml.ws
-        w_CO2_ft = x.gammaCO2 * ml.ws
-    else
-        w_th_ft = zero(ml.ws)
-        w_q_ft = zero(ml.ws)
-        w_CO2_ft = zero(ml.ws)
-    end
+    # vertical velocity that keeps the free troposphere fixed under subsidence
+    ws_ft = x.sw_fixft ? ml.ws : zero(ml.ws)
 
     ml.wf = x.dFz / (c.rho * c.cp * ml.dtheta)
 
@@ -82,29 +79,31 @@ function mixed_layer!(s::ModelState)
         ml.we = -ml.wthetave / ml.dthetav
     end
     # no shrinking of the boundary layer
-    ml.we < 0 && (ml.we = zero(ml.we))
+    ml.we = max(ml.we, 0)
 
     ml.wthetae = -ml.we * ml.dtheta
     ml.wqe = -ml.we * ml.dq
     ml.wCO2e = -ml.we * ml.dCO2
 
-    ml.htend = ml.we + ml.ws + ml.wf - cu.M
+    # growth of the layer relative to the free troposphere, and of the layer itself
+    wrel = ml.we + ml.wf - cu.M
+    ml.htend = wrel + ml.ws
 
     ml.thetatend = (ml.wtheta - ml.wthetae) / ml.h + x.advtheta
     ml.qtend = (ml.wq - ml.wqe - cu.wqM) / ml.h + x.advq
     ml.CO2tend = (ml.wCO2 - ml.wCO2e - cu.wCO2M) / ml.h + x.advCO2
 
-    ml.dthetatend = x.gammatheta * (ml.we + ml.wf - cu.M) - ml.thetatend + w_th_ft
-    ml.dqtend = x.gammaq * (ml.we + ml.wf - cu.M) - ml.qtend + w_q_ft
-    ml.dCO2tend = x.gammaCO2 * (ml.we + ml.wf - cu.M) - ml.CO2tend + w_CO2_ft
+    ml.dthetatend = x.gammatheta * (wrel + ws_ft) - ml.thetatend
+    ml.dqtend = x.gammaq * (wrel + ws_ft) - ml.qtend
+    ml.dCO2tend = x.gammaCO2 * (wrel + ws_ft) - ml.CO2tend
 
     # the wind above the layer is geostrophic: u + du = ug
     if x.sw_wind
         w.utend = -x.fc * w.dv + (sl.uw + ml.we * w.du) / ml.h + x.advu
         w.vtend = x.fc * w.du + (sl.vw + ml.we * w.dv) / ml.h + x.advv
 
-        w.dutend = x.gammau * (ml.we + ml.wf - cu.M) - w.utend
-        w.dvtend = x.gammav * (ml.we + ml.wf - cu.M) - w.vtend
+        w.dutend = x.gammau * wrel - w.utend
+        w.dvtend = x.gammav * wrel - w.vtend
     end
 
     if cu.ac > 0 || ml.lcl - ml.h < 300
@@ -129,7 +128,7 @@ function integrate_mixed_layer!(s::ModelState)
     ml.dCO2 += dt * ml.dCO2tend
     cu.dz_h += dt * cu.dztend
     # the transition layer is at least 50 m thick
-    cu.dz_h < 50 && (cu.dz_h = oftype(cu.dz_h, 50))
+    cu.dz_h = max(cu.dz_h, 50)
 
     if x.sw_wind
         w.u += dt * w.utend

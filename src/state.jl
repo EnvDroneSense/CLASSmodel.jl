@@ -2,11 +2,21 @@
 # struct holds the variables that are stored in the output; the components add the
 # rest when they are implemented.
 
+const ε = 0.622     # ratio of the molar masses of water vapor and dry air [-]
+const VIRT = 0.61   # virtual temperature coefficient, Rv / Rd - 1 [-]
+const DAY = 86400   # length of a day [s]
+
 "Saturated vapor pressure [Pa] at temperature `T` [K]."
 esat(T) = 0.611e3 * exp(17.2694 * (T - 273.16) / (T - 35.86))
 
+"Derivative of [`esat`](@ref) with respect to the temperature [Pa K-1]."
+desat(T) = esat(T) * 17.2694 * (273.16 - 35.86) / (T - 35.86)^2
+
 "Saturated specific humidity [kg kg-1] at temperature `T` [K] and pressure `p` [Pa]."
-qsat(T, p) = 0.622 * esat(T) / p
+qsat(T, p) = ε * esat(T) / p
+
+# Factor from a CO2 flux in mg CO2 m-2 s-1 to ppm m s-1.
+mg_to_ppm(c) = c.mair / (c.rho * c.mco2)
 
 "State of the mixed layer: bulk values, surface and entrainment fluxes, top diagnostics."
 Base.@kwdef mutable struct MixedLayerState{T<:AbstractFloat}
@@ -137,6 +147,7 @@ State of a running model: the (fixed) `input` and `constants`, the step counter 
 mutable struct ModelState{T<:AbstractFloat}
     input::ModelInput{T}
     constants::PhysicalConstants{T}
+    plant::AGsParameters{T}     # A-Gs parameters of the plant type `input.c3c4`
     mixed_layer::MixedLayerState{T}
     wind::WindState{T}
     radiation::RadiationState{T}
@@ -152,11 +163,11 @@ end
 Build the initial state from `input` and compute the initial diagnostics.
 """
 function init_model(x::ModelInput{T}; constants::PhysicalConstants{T}=PhysicalConstants{T}()) where {T}
-    fac = constants.mair / (constants.rho * constants.mco2)   # mg CO2 m-2 s-1 to ppm m s-1
+    plant = AGsParameters{T}(x.c3c4 == :c3 ? C3() : C4())
     s = ModelState{T}(
-        x, constants,
+        x, constants, plant,
         MixedLayerState{T}(; h=x.h, theta=x.theta, dtheta=x.dtheta, wtheta=x.wtheta,
-            q=x.q, dq=x.dq, wq=x.wq, CO2=x.CO2, dCO2=x.dCO2, wCO2=x.wCO2 * fac),
+            q=x.q, dq=x.dq, wq=x.wq, CO2=x.CO2, dCO2=x.dCO2, wCO2=x.wCO2 * mg_to_ppm(constants)),
         WindState{T}(; u=x.u, du=x.du, v=x.v, dv=x.dv),
         RadiationState{T}(; Q=x.Q),
         SurfaceLayerState{T}(; ustar=x.ustar, thetasurf=x.theta),

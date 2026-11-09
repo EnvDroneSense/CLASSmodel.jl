@@ -12,7 +12,7 @@ function radiation!(s::ModelState)
     x, c, ml, rad = s.input, s.constants, s.mixed_layer, s.radiation
 
     sda = 0.409 * cos(2π * (x.doy - 173) / 365)
-    hour_angle = 2π * (s.t * x.dt + x.tstart * 3600) / 86400 + 2π * x.lon / 360
+    hour_angle = 2π * (s.t * x.dt + x.tstart * 3600) / DAY + 2π * x.lon / 360
     sinlea = sin(2π * x.lat / 360) * sin(sda) - cos(2π * x.lat / 360) * cos(sda) * cos(hour_angle)
     sinlea = max(sinlea, 0.0001)
 

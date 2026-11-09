@@ -1,91 +1,33 @@
 # Output, time stepping and the run loop.
 
-"""
-    ModelOutput{T}(n)
+# Names of the output variables, in the order of the columns.
+const OUTPUT_NAMES = (
+    :t, :h, :theta, :thetav, :dtheta, :dthetav, :wtheta, :wthetav, :wthetae, :wthetave, :q,
+    :dq, :wq, :wqe, :wqM, :qsat, :e, :esat, :CO2, :dCO2, :wCO2, :wCO2A, :wCO2R, :wCO2e,
+    :wCO2M, :u, :du, :uw, :v, :dv, :vw, :T2m, :q2m, :u2m, :v2m, :e2m, :esat2m, :thetasurf,
+    :thetavsurf, :qsurf, :ustar, :z0m, :z0h, :Cm, :Cs, :L, :Rib, :Swin, :Swout, :Lwin,
+    :Lwout, :Q, :ra, :rs, :H, :LE, :LEliq, :LEveg, :LEsoil, :LEpot, :LEref, :G, :zlcl,
+    :RH_h, :ac, :M, :dz,
+)
 
-Time series of one run, one vector of length `n` per variable. `t` is the time of day
-in hours. `wCO2*` are in mg CO2 m-2 s-1. `wCO2M`, `z0m` and `z0h` are not written
-and stay zero.
 """
-struct ModelOutput{T<:AbstractFloat}
-    t::Vector{T}
-    h::Vector{T}
-    theta::Vector{T}
-    thetav::Vector{T}
-    dtheta::Vector{T}
-    dthetav::Vector{T}
-    wtheta::Vector{T}
-    wthetav::Vector{T}
-    wthetae::Vector{T}
-    wthetave::Vector{T}
-    q::Vector{T}
-    dq::Vector{T}
-    wq::Vector{T}
-    wqe::Vector{T}
-    wqM::Vector{T}
-    qsat::Vector{T}
-    e::Vector{T}
-    esat::Vector{T}
-    CO2::Vector{T}
-    dCO2::Vector{T}
-    wCO2::Vector{T}
-    wCO2A::Vector{T}
-    wCO2R::Vector{T}
-    wCO2e::Vector{T}
-    wCO2M::Vector{T}
-    u::Vector{T}
-    du::Vector{T}
-    uw::Vector{T}
-    v::Vector{T}
-    dv::Vector{T}
-    vw::Vector{T}
-    T2m::Vector{T}
-    q2m::Vector{T}
-    u2m::Vector{T}
-    v2m::Vector{T}
-    e2m::Vector{T}
-    esat2m::Vector{T}
-    thetasurf::Vector{T}
-    thetavsurf::Vector{T}
-    qsurf::Vector{T}
-    ustar::Vector{T}
-    z0m::Vector{T}
-    z0h::Vector{T}
-    Cm::Vector{T}
-    Cs::Vector{T}
-    L::Vector{T}
-    Rib::Vector{T}
-    Swin::Vector{T}
-    Swout::Vector{T}
-    Lwin::Vector{T}
-    Lwout::Vector{T}
-    Q::Vector{T}
-    ra::Vector{T}
-    rs::Vector{T}
-    H::Vector{T}
-    LE::Vector{T}
-    LEliq::Vector{T}
-    LEveg::Vector{T}
-    LEsoil::Vector{T}
-    LEpot::Vector{T}
-    LEref::Vector{T}
-    G::Vector{T}
-    zlcl::Vector{T}
-    RH_h::Vector{T}
-    ac::Vector{T}
-    M::Vector{T}
-    dz::Vector{T}
-end
+    ModelOutput{T}
 
-ModelOutput{T}(n::Integer) where {T} =
-    ModelOutput{T}(ntuple(_ -> zeros(T, n), fieldcount(ModelOutput{T}))...)
+Time series of one run: a `NamedTuple` with one vector per variable (a table in the sense
+of Tables.jl). `t` is the time of day in hours. `wCO2*` are in mg CO2 m-2 s-1. `wCO2M`,
+`z0m` and `z0h` are not written and stay zero.
+"""
+const ModelOutput{T} = NamedTuple{OUTPUT_NAMES,NTuple{length(OUTPUT_NAMES),Vector{T}}}
+
+empty_output(::Type{T}, n::Integer) where {T} =
+    ModelOutput{T}(ntuple(_ -> zeros(T, n), length(OUTPUT_NAMES)))
 
 "Write the current state into row `s.t + 1` of `out`."
 function store!(out::ModelOutput, s::ModelState)
     i = s.t + 1
-    x, c = s.input, s.constants
+    x = s.input
     ml, w, rad, sl, ls, cu = s.mixed_layer, s.wind, s.radiation, s.surface_layer, s.land_surface, s.cumulus
-    fac = (c.rho * c.mco2) / c.mair     # ppm m s-1 to mg CO2 m-2 s-1
+    f = mg_to_ppm(s.constants)
 
     out.t[i] = s.t * x.dt / 3600 + x.tstart
     out.h[i] = ml.h
@@ -110,10 +52,10 @@ function store!(out::ModelOutput, s::ModelState)
 
     out.CO2[i] = ml.CO2
     out.dCO2[i] = ml.dCO2
-    out.wCO2[i] = ml.wCO2 * fac
-    out.wCO2e[i] = ml.wCO2e * fac
-    out.wCO2R[i] = ml.wCO2R * fac
-    out.wCO2A[i] = ml.wCO2A * fac
+    out.wCO2[i] = ml.wCO2 / f
+    out.wCO2e[i] = ml.wCO2e / f
+    out.wCO2R[i] = ml.wCO2R / f
+    out.wCO2A[i] = ml.wCO2A / f
 
     out.u[i] = w.u
     out.du[i] = w.du
@@ -165,12 +107,12 @@ function store!(out::ModelOutput, s::ModelState)
 end
 
 """
-    step!(s::ModelState, out::ModelOutput)
+    compute!(s::ModelState)
 
-Advance the model by one time step: run the components, store the output, then
-integrate the land surface and the mixed layer.
+Run the components for the current time: the diagnostics, then radiation, surface layer,
+land surface, cumulus and mixed layer, as far as they are switched on.
 """
-function step!(s::ModelState, out::ModelOutput)
+function compute!(s::ModelState)
     x = s.input
     statistics!(s)
     x.sw_rad && radiation!(s)
@@ -178,7 +120,12 @@ function step!(s::ModelState, out::ModelOutput)
     x.sw_ls && land_surface!(s)
     x.sw_cu && cumulus!(s)
     x.sw_ml && mixed_layer!(s)
-    store!(out, s)
+    return s
+end
+
+"Advance the land surface and the mixed layer by one time step from their tendencies."
+function integrate!(s::ModelState)
+    x = s.input
     x.sw_ls && integrate_land_surface!(s)
     x.sw_ml && integrate_mixed_layer!(s)
     s.t += 1
@@ -186,15 +133,29 @@ function step!(s::ModelState, out::ModelOutput)
 end
 
 """
+    step!(s::ModelState)
+
+Advance the model by one time step: [`compute!`](@ref) then [`integrate!`](@ref).
+"""
+function step!(s::ModelState)
+    compute!(s)
+    integrate!(s)
+    return s
+end
+
+"""
     run_model(input; constants = PhysicalConstants{T}()) -> ModelOutput
 
-Run the model for `floor(runtime / dt)` steps and return the time series.
+Run the model for `floor(runtime / dt)` steps and return the time series. Each row holds
+the state before the time step is integrated.
 """
 function run_model(x::ModelInput{T}; kwargs...) where {T}
     s = init_model(x; kwargs...)
-    out = ModelOutput{T}(floor(Int, x.runtime / x.dt))
+    out = empty_output(T, floor(Int, x.runtime / x.dt))
     for _ in eachindex(out.t)
-        step!(s, out)
+        compute!(s)
+        store!(out, s)
+        integrate!(s)
     end
     return out
 end

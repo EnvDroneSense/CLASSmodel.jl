@@ -37,9 +37,8 @@ function land_surface!(s::ModelState)
     # thermodynamic variables at the mixed-layer temperature
     ml.esat = esat(ml.theta)
     ml.qsat = qsat(ml.theta, x.Ps)
-    desatdT = ml.esat * (17.2694 / (ml.theta - 35.86) - 17.2694 * (ml.theta - 273.16) / (ml.theta - 35.86)^2)
-    dqsatdT = 0.622 * desatdT / x.Ps
-    ml.e = ml.q * x.Ps / 0.622
+    dqsatdT = ε * desat(ml.theta) / x.Ps
+    ml.e = ml.q * x.Ps / ε
 
     x.ls_type == :js ? jarvis_stewart!(s) : ags!(s)
 
@@ -48,38 +47,41 @@ function land_surface!(s::ModelState)
     rssoil = x.rssoilmin * f2
 
     cliq = min(1, ls.Wl / (x.LAI * x.Wmax))   # wet fraction of the vegetation
-    ra, rs, cveg = sl.ra, ls.rs, x.cveg
+    ra = sl.ra
+
+    # latent heat per unit humidity deficit of the dry vegetation, the soil and the wet vegetation
+    kveg = x.cveg * (1 - cliq) * rho * Lv / (ra + ls.rs)
+    ksoil = (1 - x.cveg) * rho * Lv / (ra + rssoil)
+    kliq = x.cveg * cliq * rho * Lv / ra
+    kLE = kveg + ksoil + kliq
 
     # skin temperature from the linearised energy balance
-    ls.Ts = (s.radiation.Q + rho * cp / ra * ml.theta +
-             cveg * (1 - cliq) * rho * Lv / (ra + rs) * (dqsatdT * ml.theta - ml.qsat + ml.q) +
-             (1 - cveg) * rho * Lv / (ra + rssoil) * (dqsatdT * ml.theta - ml.qsat + ml.q) +
-             cveg * cliq * rho * Lv / ra * (dqsatdT * ml.theta - ml.qsat + ml.q) + x.Lambda * ls.Tsoil) /
-            (rho * cp / ra + cveg * (1 - cliq) * rho * Lv / (ra + rs) * dqsatdT +
-             (1 - cveg) * rho * Lv / (ra + rssoil) * dqsatdT + cveg * cliq * rho * Lv / ra * dqsatdT + x.Lambda)
+    ls.Ts = (s.radiation.Q + rho * cp / ra * ml.theta + kLE * (dqsatdT * ml.theta - ml.qsat + ml.q) +
+             x.Lambda * ls.Tsoil) / (rho * cp / ra + kLE * dqsatdT + x.Lambda)
 
     dTs = ls.Ts - ml.theta
-    ls.LEveg = (1 - cliq) * cveg * rho * Lv / (ra + rs) * (dqsatdT * dTs + ml.qsat - ml.q)
-    ls.LEliq = cliq * cveg * rho * Lv / ra * (dqsatdT * dTs + ml.qsat - ml.q)
-    ls.LEsoil = (1 - cveg) * rho * Lv / (ra + rssoil) * (dqsatdT * dTs + ml.qsat - ml.q)
+    dq = dqsatdT * dTs + ml.qsat - ml.q
+    ls.LEveg = kveg * dq
+    ls.LEliq = kliq * dq
+    ls.LEsoil = ksoil * dq
     ls.Wltend = -ls.LEliq / (c.rhow * Lv)
 
     ls.LE = ls.LEsoil + ls.LEveg + ls.LEliq
     ls.H = rho * cp / ra * dTs
     ls.G = x.Lambda * (ls.Ts - ls.Tsoil)
-    ls.LEpot = (dqsatdT * (s.radiation.Q - ls.G) + rho * cp / ra * (ml.qsat - ml.q)) / (dqsatdT + cp / Lv)
-    ls.LEref = (dqsatdT * (s.radiation.Q - ls.G) + rho * cp / ra * (ml.qsat - ml.q)) /
-               (dqsatdT + cp / Lv * (1 + x.rsmin / x.LAI / ra))
+    avail = dqsatdT * (s.radiation.Q - ls.G) + rho * cp / ra * (ml.qsat - ml.q)
+    ls.LEpot = avail / (dqsatdT + cp / Lv)
+    ls.LEref = avail / (dqsatdT + cp / Lv * (1 + x.rsmin / x.LAI / ra))
 
     # force-restore soil
     CG = x.CGsat * (x.wsat / x.w2)^(x.b / (2 * log(10)))
-    ls.Tsoiltend = CG * ls.G - 2π / 86400 * (ls.Tsoil - x.T2)
+    ls.Tsoiltend = CG * ls.G - 2π / DAY * (ls.Tsoil - x.T2)
 
     d1 = 0.1
     C1 = x.C1sat * (x.wsat / ls.wg)^(x.b / 2 + 1)
     C2 = x.C2ref * (x.w2 / (x.wsat - x.w2))
     wgeq = x.w2 - x.wsat * x.a * ((x.w2 / x.wsat)^x.p * (1 - (x.w2 / x.wsat)^(8 * x.p)))
-    ls.wgtend = -C1 / (c.rhow * d1) * ls.LEsoil / Lv - C2 / 86400 * (ls.wg - wgeq)
+    ls.wgtend = -C1 / (c.rhow * d1) * ls.LEsoil / Lv - C2 / DAY * (ls.wg - wgeq)
 
     # kinematic surface fluxes for the mixed layer
     ml.wtheta = ls.H / (rho * cp)

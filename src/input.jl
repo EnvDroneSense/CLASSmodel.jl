@@ -13,11 +13,6 @@ struct C3 <: PlantType end
 "C4 plant type of the A-Gs scheme."
 struct C4 <: PlantType end
 
-# Element type for a constructor called without `{T}`: the promoted type of the numbers
-# given, at least Float64 for integers. The keyword constructors made by `@kwdef` end up
-# here, so `ModelInput(; dt=60, h=200.5)` is a `ModelInput{Float64}`.
-_float_type(args) = float(promote_type((typeof(a) for a in args if a isa Real && !(a isa Bool))...))
-
 """
     PhysicalConstants{T}(; kwargs...)
 
@@ -43,7 +38,7 @@ Base.@kwdef struct PhysicalConstants{T<:AbstractFloat}
     R10::T = 0.23           # respiration at 10 C [mg CO2 m-2 s-1]
     E0::T = 53.3e3          # activation energy [J kmol-1]
 end
-PhysicalConstants(args...) = PhysicalConstants{_float_type(args)}(args...)
+PhysicalConstants(args...) = PhysicalConstants{Float64}(args...)
 
 """
     AGsParameters{T}(plant)
@@ -81,7 +76,7 @@ AGsParameters{T}(::C4) where {T} = AGsParameters{T}(;
 
 """
     ModelInput{T}(; kwargs...)
-    ModelInput(; kwargs...)    # T from the numbers given: Float64 unless Float32 only
+    ModelInput(; kwargs...)    # T = Float64
 
 All input of a run. The defaults describe a dry mixed layer with fixed surface
 fluxes. The input is checked when it is constructed (see [`validate`](@ref)).
@@ -209,7 +204,7 @@ Base.@kwdef struct ModelInput{T<:AbstractFloat}
         return input
     end
 end
-ModelInput(args...) = ModelInput{_float_type(args)}(args...)
+ModelInput(args...) = ModelInput{Float64}(args...)
 
 """
     validate(input::ModelInput)

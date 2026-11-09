@@ -1,10 +1,11 @@
-using CLASSmodel: esat, qsat, init_model
+using CLASSmodel: esat, desat, qsat, init_model, step!
 
 @testset "model" begin
     @testset "saturation" begin
         @test esat(273.16) ≈ 611 rtol = 1e-12
         @test esat(293.15) ≈ 2339 rtol = 0.01     # textbook value at 20 C
         @test qsat(293.15, 101300) ≈ 0.622 * esat(293.15) / 101300
+        @test desat(285.0) ≈ (esat(285.0 + 1e-4) - esat(285.0 - 1e-4)) / 2e-4 rtol = 1e-8
     end
 
     @testset "run loop" begin
@@ -20,5 +21,13 @@ using CLASSmodel: esat, qsat, init_model
         @test out.wCO2 ≈ fill(0.2, 16)                             # unit conversion round trip
         @test all(isnan, out.Swin) && all(==(0), out.z0m)          # not computed, not written
         @test run_model(ModelInput{Float32}()) isa ModelOutput{Float32}
+
+        # stepping by hand gives the run's state: the row of step n holds the state before it
+        y = ModelInput(; runtime=600)
+        s = init_model(y)
+        for _ in 1:3
+            step!(s)
+        end
+        @test s.t == 3 && s.mixed_layer.h ≈ run_model(y).h[4]
     end
 end
