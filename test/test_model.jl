@@ -8,7 +8,7 @@ using CLASSmodel: esat, qsat, init_model
     end
 
     @testset "run loop" begin
-        x = ModelInput(; runtime=1000, dt=60, tstart=6, wCO2=0.2)
+        x = ModelInput(; runtime=1000, dt=60, tstart=6, wCO2=0.2, sw_ml=false)
         s = init_model(x)
         @test s.t == 0
         @test s.mixed_layer.wCO2 ≈ 0.2 * 28.9 / (1.2 * 44)
@@ -16,9 +16,9 @@ using CLASSmodel: esat, qsat, init_model
         out = run_model(x)
         @test length(out.t) == 16                                  # floor(1000 / 60)
         @test out.t ≈ 6 .+ (0:15) .* 60 / 3600
-        @test all(==(x.h), out.h) && all(==(x.u), out.u)           # nothing evolves yet
+        @test all(==(x.h), out.h) && all(==(x.u), out.u)           # mixed layer off: no change
         @test out.wCO2 ≈ fill(0.2, 16)                             # unit conversion round trip
-        @test all(isnan, out.thetav) && all(==(0), out.z0m)        # not computed, not written
+        @test all(isnan, out.Swin) && all(==(0), out.z0m)          # not computed, not written
         @test run_model(ModelInput{Float32}()) isa ModelOutput{Float32}
     end
 end

@@ -11,6 +11,10 @@ qsat(T, p) = 0.622 * esat(T) / p
 "State of the mixed layer: bulk values, surface and entrainment fluxes, top diagnostics."
 Base.@kwdef mutable struct MixedLayerState{T<:AbstractFloat}
     h::T = NaN              # ABL height [m]
+    ws::T = NaN             # large-scale vertical velocity [m s-1]
+    wf::T = NaN             # growth due to radiative divergence [m s-1]
+    we::T = NaN             # entrainment velocity [m s-1]
+    wstar::T = NaN          # convective velocity scale [m s-1]
 
     theta::T = NaN          # potential temperature [K]
     dtheta::T = NaN         # potential temperature jump at h [K]
@@ -36,8 +40,18 @@ Base.@kwdef mutable struct MixedLayerState{T<:AbstractFloat}
     wCO2R::T = 0            # surface respiration CO2 flux [ppm m s-1]
     wCO2e::T = NaN          # entrainment CO2 flux [ppm m s-1]
 
-    lcl::T = NaN            # lifting condensation level [m]
+    P_h::T = NaN            # pressure at the top [Pa]
+    T_h::T = NaN            # absolute temperature at the top [K]
     RH_h::T = NaN           # relative humidity at the top [-]
+    lcl::T = NaN            # lifting condensation level [m]
+
+    htend::T = NaN          # tendency of h [m s-1]
+    thetatend::T = NaN      # tendency of theta [K s-1]
+    dthetatend::T = NaN     # tendency of dtheta [K s-1]
+    qtend::T = NaN          # tendency of q [kg kg-1 s-1]
+    dqtend::T = NaN         # tendency of dq [kg kg-1 s-1]
+    CO2tend::T = NaN        # tendency of CO2 [ppm s-1]
+    dCO2tend::T = NaN       # tendency of dCO2 [ppm s-1]
 end
 
 "State of the mixed-layer wind: components and jumps at h."
@@ -46,6 +60,10 @@ Base.@kwdef mutable struct WindState{T<:AbstractFloat}
     du::T = NaN             # u-wind jump at h [m s-1]
     v::T = NaN              # v-wind [m s-1]
     dv::T = NaN             # v-wind jump at h [m s-1]
+    utend::T = NaN          # tendency of u [m s-2]
+    dutend::T = NaN         # tendency of du [m s-2]
+    vtend::T = NaN          # tendency of v [m s-2]
+    dvtend::T = NaN         # tendency of dv [m s-2]
 end
 
 "State of the radiation scheme."
@@ -98,7 +116,9 @@ Base.@kwdef mutable struct CumulusState{T<:AbstractFloat}
     ac::T = 0               # cloud core fraction [-]
     M::T = 0                # cloud core mass flux [m s-1]
     wqM::T = 0              # cloud core moisture flux [kg kg-1 m s-1]
+    wCO2M::T = 0            # cloud core CO2 flux [ppm m s-1]
     dz_h::T = NaN           # transition layer thickness [m]
+    dztend::T = NaN         # tendency of dz_h [m s-1]
 end
 
 """
@@ -120,14 +140,11 @@ mutable struct ModelState{T<:AbstractFloat}
 end
 
 # Component functions. They do nothing yet; each is replaced when its component is added.
-statistics!(s::ModelState) = nothing
 radiation!(s::ModelState) = nothing
 surface_layer!(s::ModelState) = nothing
 land_surface!(s::ModelState) = nothing
 cumulus!(s::ModelState) = nothing
-mixed_layer!(s::ModelState) = nothing
 integrate_land_surface!(s::ModelState) = nothing
-integrate_mixed_layer!(s::ModelState) = nothing
 
 """
     init_model(input; constants = PhysicalConstants{T}()) -> ModelState

@@ -4,6 +4,7 @@
 using TOML
 
 const REFERENCE = joinpath(@__DIR__, "reference", "cases.toml")
+const IMPLEMENTED = ("ml", "ml_wind_shear_fixft")   # cases compared in full; grows with each step
 
 @testset "modelpy reference" begin
     if isfile(REFERENCE)
@@ -13,10 +14,18 @@ const REFERENCE = joinpath(@__DIR__, "reference", "cases.toml")
             x = ModelInput(; (Symbol(k) => value(v) for (k, v) in case)...)
             @test all(getfield(x, Symbol(k)) == value(v) for (k, v) in case)
 
-            # the time column is the only one that does not depend on the physics yet
             lines = filter(l -> !startswith(l, "#"), readlines(joinpath(@__DIR__, "reference", "$name.csv")))
-            tref = [parse(Float64, split(l, ',')[1]) for l in lines[2:end]]
-            @test run_model(x).t == tref
+            names = Symbol.(split(lines[1], ','))
+            ref = [parse.(Float64, split(l, ',')) for l in lines[2:end]]
+            out = run_model(x)
+            @test out.t == getindex.(ref, 1)
+
+            # all columns, for the cases whose physics is implemented
+            if name in IMPLEMENTED
+                for (j, n) in enumerate(names)
+                    @test isapprox(getfield(out, n), getindex.(ref, j); rtol=1e-12, nans=true)
+                end
+            end
         end
         # the defaults are the "ml" case
         @test all(getfield(ModelInput(), Symbol(k)) == value(v) for (k, v) in cases["ml"])
