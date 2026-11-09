@@ -1,4 +1,4 @@
-# CLASSmodel.jl, a Julia port of the CLASS model (modelpy)
+# CLASSmodel.jl, a Julia implementation of the CLASS mixed-layer model
 #
 # Copyright (c) 2010-2015 Meteorology and Air Quality section, Wageningen University and Research centre
 # Copyright (c) 2011-2015 Jordi Vila-Guerau de Arellano, Chiel van Heerwaarden, Bart van Stratum, Kees van den Dries
@@ -13,6 +13,8 @@
 
 module CLASSmodel
 
-# Write your package code here.
+export ModelInput, PhysicalConstants, AGsParameters, PlantType, C3, C4, validate
+
+include("input.jl")
 
 end

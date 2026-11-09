@@ -2,5 +2,6 @@ using CLASSmodel
 using Test
 
 @testset "CLASSmodel.jl" begin
-    # Write your tests here.
+    include("test_input.jl")
+    include("compare_modelpy.jl")   # temporary, see the file
 end
