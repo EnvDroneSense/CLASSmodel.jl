@@ -14,8 +14,7 @@ const OUTPUT_NAMES = (
     ModelOutput{T}
 
 Time series of one run: a `NamedTuple` with one vector per variable (a table in the sense
-of Tables.jl). `t` is the time of day in hours. `wCO2*` are in mg CO2 m-2 s-1. `wCO2M`,
-`z0m` and `z0h` are not written and stay zero.
+of Tables.jl). `t` is the time of day in hours. `wCO2*` are in mg CO2 m-2 s-1.
 """
 const ModelOutput{T} = NamedTuple{OUTPUT_NAMES,NTuple{length(OUTPUT_NAMES),Vector{T}}}
 
@@ -56,6 +55,7 @@ function store!(out::ModelOutput, s::ModelState)
     out.wCO2e[i] = ml.wCO2e / f
     out.wCO2R[i] = ml.wCO2R / f
     out.wCO2A[i] = ml.wCO2A / f
+    out.wCO2M[i] = cu.wCO2M / f
 
     out.u[i] = w.u
     out.du[i] = w.du
@@ -75,6 +75,8 @@ function store!(out::ModelOutput, s::ModelState)
     out.thetavsurf[i] = sl.thetavsurf
     out.qsurf[i] = sl.qsurf
     out.ustar[i] = sl.ustar
+    out.z0m[i] = x.z0m
+    out.z0h[i] = x.z0h
     out.Cm[i] = sl.Cm
     out.Cs[i] = sl.Cs
     out.L[i] = sl.L

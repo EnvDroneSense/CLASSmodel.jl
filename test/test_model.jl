@@ -19,7 +19,8 @@ using CLASSmodel: esat, desat, qsat, init_model, step!
         @test out.t ≈ 6 .+ (0:15) .* 60 / 3600
         @test all(==(x.h), out.h) && all(==(x.u), out.u)           # mixed layer off: no change
         @test out.wCO2 ≈ fill(0.2, 16)                             # unit conversion round trip
-        @test all(isnan, out.Swin) && all(==(0), out.z0m)          # not computed, not written
+        @test all(isnan, out.Swin)                                 # not computed
+        @test all(==(x.z0m), out.z0m) && all(==(x.z0h), out.z0h) && all(==(0), out.wCO2M)
         @test run_model(ModelInput{Float32}()) isa ModelOutput{Float32}
 
         # stepping by hand gives the run's state: the row of step n holds the state before it

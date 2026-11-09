@@ -29,11 +29,19 @@ ribfun(L, zsl, z0m, z0h) =
 
 Obukhov length [m] for the bulk Richardson number `Rib` at height `zsl`, found by Newton
 iteration (central difference for the derivative) from `L = ±1`. The iteration stops when
-`L` changes by less than 1 mm, or when `|L|` exceeds 1e15 (neutral).
+`L` changes by less than 1 mm, when `|L|` exceeds 1e15 (neutral), or after 100 iterations
+(with a warning).
 """
 function ribtol(Rib, zsl, z0m, z0h)
     L, L0 = Rib > 0 ? (one(Rib), 2 * one(Rib)) : (-one(Rib), -2 * one(Rib))
+    itmax = 100
+    it = 0
     while abs(L - L0) > 0.001
+        if it == itmax
+            @warn "Obukhov length not converged" Rib L
+            break
+        end
+        it += 1
         L0 = L
         fx = Rib - ribfun(L, zsl, z0m, z0h)
         Lstart = L - 0.001 * L

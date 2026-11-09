@@ -43,8 +43,10 @@ end
 # runs without the surface layer.
 function prescribed_stress!(s::ModelState)
     w, sl = s.wind, s.surface_layer
-    sl.uw = -sign(w.u) * sqrt(sl.ustar^4 / (w.v^2 / w.u^2 + 1))
-    sl.vw = -sign(w.v) * sqrt(sl.ustar^4 / (w.u^2 / w.v^2 + 1))
+    speed = hypot(w.u, w.v)
+    # no wind, no stress
+    sl.uw = iszero(speed) ? zero(speed) : -sl.ustar^2 * w.u / speed
+    sl.vw = iszero(speed) ? zero(speed) : -sl.ustar^2 * w.v / speed
     return nothing
 end
 

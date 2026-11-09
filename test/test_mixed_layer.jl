@@ -17,6 +17,12 @@ using CLASSmodel: qsat
     out = run_model(x)
     @test out.h[end] ≈ x.h * exp(-x.divU * (3600 - 1)) rtol = 1e-4
 
+    # without surface layer the stress has the size ustar^2 and the direction of the wind, also for u = 0
+    out = run_model(ModelInput(; runtime=60, ustar=0.3, u=3, v=-4))
+    @test hypot(out.uw[1], out.vw[1]) ≈ 0.3^2 && out.uw[1] ≈ -0.09 * 3 / 5 && out.vw[1] ≈ 0.09 * 4 / 5
+    out = run_model(ModelInput(; runtime=60, ustar=0.3, u=0, v=-4))
+    @test out.uw[1] == 0 && out.vw[1] ≈ 0.09
+
     # the lifting condensation level is where the mixed-layer air is saturated
     out = run_model(ModelInput(; runtime=600))
     x = ModelInput()

@@ -33,6 +33,7 @@ end
             # all columns, for the cases whose physics is implemented
             if name in IMPLEMENTED
                 for (j, n) in enumerate(names)
+                    n in (:wCO2M, :z0m, :z0h) && continue   # zero in the reference: never written there
                     # L: the Newton iteration stops at |dL| < 1 mm, so round-off can add or skip
                     # one last step (about 1e-8 m near neutral, where |L| is large)
                     rtol, atol_frac = n == :L ? (1e-10, 0.0) : (1e-12, 1e-13)
