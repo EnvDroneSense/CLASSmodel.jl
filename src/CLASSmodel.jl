@@ -14,7 +14,10 @@
 module CLASSmodel
 
 export ModelInput, PhysicalConstants, AGsParameters, PlantType, C3, C4, validate
+export ModelOutput, run_model
 
 include("input.jl")
+include("state.jl")
+include("model.jl")
 
 end
