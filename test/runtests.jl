@@ -6,5 +6,6 @@ using Test
     include("test_model.jl")
     include("test_mixed_layer.jl")
     include("test_radiation.jl")
+    include("test_surface_layer.jl")
     include("compare_modelpy.jl")   # temporary, see the file
 end

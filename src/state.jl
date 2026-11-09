@@ -14,7 +14,7 @@ Base.@kwdef mutable struct MixedLayerState{T<:AbstractFloat}
     ws::T = NaN             # large-scale vertical velocity [m s-1]
     wf::T = NaN             # growth due to radiative divergence [m s-1]
     we::T = NaN             # entrainment velocity [m s-1]
-    wstar::T = NaN          # convective velocity scale [m s-1]
+    wstar::T = 0            # convective velocity scale [m s-1]
 
     theta::T = NaN          # potential temperature [K]
     dtheta::T = NaN         # potential temperature jump at h [K]
@@ -141,7 +141,6 @@ mutable struct ModelState{T<:AbstractFloat}
 end
 
 # Component functions. They do nothing yet; each is replaced when its component is added.
-surface_layer!(s::ModelState) = nothing
 land_surface!(s::ModelState) = nothing
 cumulus!(s::ModelState) = nothing
 integrate_land_surface!(s::ModelState) = nothing

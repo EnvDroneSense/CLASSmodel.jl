@@ -4,7 +4,7 @@
 using TOML
 
 const REFERENCE = joinpath(@__DIR__, "reference", "cases.toml")
-const IMPLEMENTED = ("ml", "ml_wind_shear_fixft", "rad")   # cases compared in full; grows with each step
+const IMPLEMENTED = ("ml", "ml_wind_shear_fixft", "rad", "sl")   # cases compared in full; grows with each step
 
 @testset "modelpy reference" begin
     if isfile(REFERENCE)
