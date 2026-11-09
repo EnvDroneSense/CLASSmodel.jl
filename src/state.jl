@@ -146,9 +146,6 @@ mutable struct ModelState{T<:AbstractFloat}
     t::Int
 end
 
-# Component functions. They do nothing yet; each is replaced when its component is added.
-cumulus!(s::ModelState) = nothing
-
 """
     init_model(input; constants = PhysicalConstants{T}()) -> ModelState
 

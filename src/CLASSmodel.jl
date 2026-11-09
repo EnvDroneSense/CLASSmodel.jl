@@ -23,6 +23,7 @@ include("radiation.jl")
 include("surface_layer.jl")
 include("ags.jl")
 include("land_surface.jl")
+include("cumulus.jl")
 include("model.jl")
 
 end

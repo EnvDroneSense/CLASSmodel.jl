@@ -9,5 +9,6 @@ using Test
     include("test_surface_layer.jl")
     include("test_land_surface.jl")
     include("test_ags.jl")
+    include("test_cumulus.jl")
     include("compare_modelpy.jl")   # temporary, see the file
 end

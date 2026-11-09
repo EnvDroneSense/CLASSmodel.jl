@@ -4,7 +4,7 @@
 using TOML
 
 const REFERENCE = joinpath(@__DIR__, "reference", "cases.toml")
-const IMPLEMENTED = ("ml", "ml_wind_shear_fixft", "rad", "sl", "ls_js", "ls_ags_c3", "ls_ags_c4")   # cases compared in full; grows with each step
+const IMPLEMENTED = ("ml", "ml_wind_shear_fixft", "rad", "sl", "ls_js", "ls_ags_c3", "ls_ags_c4", "cu", "full")   # cases compared in full; grows with each step
 
 # Every element within rtol of the reference, or within `atol_frac` of the largest value of
 # the column (for values that pass through zero, where a difference of two large numbers
