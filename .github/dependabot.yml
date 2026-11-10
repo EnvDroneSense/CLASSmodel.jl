@@ -17,6 +17,10 @@ updates:
       - "/test"
     schedule:
       interval: "weekly"
+    ignore:
+      # standard libraries have no registry releases to track
+      - dependency-name: "Test"
+      - dependency-name: "TOML"
     # To group all Julia dependency updates into a single PR, uncomment the following:
     # groups:
     #   julia-dependencies:
