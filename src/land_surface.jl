@@ -11,8 +11,9 @@ function jarvis_stewart!(s::ModelState)
     x, ml = s.input, s.mixed_layer
 
     f1 = x.sw_rad ?
-         1 / min(1, (0.004 * s.radiation.Swin + 0.05) /
-                (0.81 * (0.004 * s.radiation.Swin + 1))) : one(ml.theta)
+         1 / min(
+        1, (0.004 * s.radiation.Swin + 0.05) /
+           (0.81 * (0.004 * s.radiation.Swin + 1))) : one(ml.theta)
     f2 = x.w2 > x.wwilt ? (x.wfc - x.wwilt) / (x.w2 - x.wwilt) : 1e8
     f2 = max(f2, 1)   # no reduction when w2 is above field capacity
     f3 = 1 / exp(-x.gD * (ml.esat - ml.e) / 100)

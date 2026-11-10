@@ -5,7 +5,7 @@
         doy = 81, cc = 0, alpha = 0.25)
     out = run_model(x)
     @test argmax(out.Swin) == 25                      # t = 12 h
-    @test out.Swin[25] ≈ 1368 * 0.8 atol = 15         # sinlea ≈ 1, Tr = 0.8
+    @test out.Swin[25]≈1368 * 0.8 atol=15         # sinlea ≈ 1, Tr = 0.8
     @test out.Swin[1] < 1                             # night: floor on the solar elevation
     @test out.Swout ≈ x.alpha .* out.Swin
     @test out.Q ≈ out.Swin - out.Swout + out.Lwin - out.Lwout

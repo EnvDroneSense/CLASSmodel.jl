@@ -49,7 +49,7 @@
     @testset "lifting condensation level" begin
         # a layer that stays far below saturation does not converge, and says so
         x = ModelInput(; runtime = 60, h = 3000, q = 0.0001, theta = 300)
-        @test_logs (:warn, "LCL calculation not converged") match_mode = :any run_model(x)
+        @test_logs (:warn, "LCL calculation not converged") match_mode=:any run_model(x)
     end
 
     @testset "every output is written" begin

@@ -228,8 +228,10 @@ Throw an `ArgumentError` if `input` cannot be run. Called by the
 """
 function validate(x::ModelInput)
     positive(name, v) = v > 0 || throw(ArgumentError("$name must be > 0, got $v"))
-    fraction(name, v) = 0 <= v <= 1 ||
-                        throw(ArgumentError("$name must be in [0, 1], got $v"))
+    function fraction(name, v)
+        0 <= v <= 1 ||
+            throw(ArgumentError("$name must be in [0, 1], got $v"))
+    end
 
     for name in fieldnames(typeof(x))
         v = getfield(x, name)

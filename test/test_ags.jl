@@ -6,12 +6,12 @@ using CLASSmodel: E1
     @test E1(0.1) ≈ 1.8229239584193906
     @test E1(2.0) < E1(1.0)
     # series and continued fraction agree, also for large arguments and for Float32
-    @test E1(nextfloat(1.0)) ≈ E1(1.0) rtol = 1e-14
-    @test E1(5.0) ≈ 1.1482955912753257e-3 rtol = 1e-14
-    @test E1(10.0) ≈ 4.156968929685325e-6 rtol = 1e-14
-    @test E1(40.0) ≈ 1.036773261451657e-19 rtol = 1e-14
+    @test E1(nextfloat(1.0))≈E1(1.0) rtol=1e-14
+    @test E1(5.0)≈1.1482955912753257e-3 rtol=1e-14
+    @test E1(10.0)≈4.156968929685325e-6 rtol=1e-14
+    @test E1(40.0)≈1.036773261451657e-19 rtol=1e-14
     @test E1(3.0f0) isa Float32
-    @test E1(3.0f0) ≈ E1(3.0) rtol = 1e-6
+    @test E1(3.0f0)≈E1(3.0) rtol=1e-6
 
     ags(; kw...) = run_model(ModelInput(;
         runtime = 600, sw_rad = true, sw_sl = true, sw_ls = true, ls_type = :ags, kw...))

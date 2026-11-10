@@ -162,7 +162,8 @@ end
 
 Build the initial state from `input` and compute the initial diagnostics.
 """
-function init_model(x::ModelInput{T}; constants::PhysicalConstants{T} = PhysicalConstants{T}()) where {T}
+function init_model(x::ModelInput{T};
+        constants::PhysicalConstants{T} = PhysicalConstants{T}()) where {T}
     plant = AGsParameters{T}(x.c3c4 == :c3 ? C3() : C4())
     s = ModelState{T}(
         x, constants, plant,

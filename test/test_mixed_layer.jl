@@ -15,7 +15,7 @@ using CLASSmodel: qsat
     # subsidence alone makes h decay like exp(-divU t)
     x = ModelInput(; runtime = 3600, dt = 1, wtheta = 0, wq = 0, wCO2 = 0, divU = 1e-4)
     out = run_model(x)
-    @test out.h[end] ≈ x.h * exp(-x.divU * (3600 - 1)) rtol = 1e-4
+    @test out.h[end]≈x.h * exp(-x.divU * (3600 - 1)) rtol=1e-4
 
     # without surface layer the stress has the size ustar^2 and the direction of the wind, also for u = 0
     out = run_model(ModelInput(; runtime = 60, ustar = 0.3, u = 3, v = -4))
@@ -28,5 +28,5 @@ using CLASSmodel: qsat
     out = run_model(ModelInput(; runtime = 600))
     x = ModelInput()
     T_lcl = out.theta[1] - 9.81 / 1005 * out.zlcl[1]
-    @test out.q[1] / qsat(T_lcl, 101300 - 1.2 * 9.81 * out.zlcl[1]) ≈ 1 atol = 2e-4
+    @test out.q[1] / qsat(T_lcl, 101300 - 1.2 * 9.81 * out.zlcl[1])≈1 atol=2e-4
 end

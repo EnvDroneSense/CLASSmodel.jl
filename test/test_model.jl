@@ -2,10 +2,10 @@ using CLASSmodel: esat, desat, qsat, init_model, step!
 
 @testset "model" begin
     @testset "saturation" begin
-        @test esat(273.16) ≈ 611 rtol = 1e-12
-        @test esat(293.15) ≈ 2339 rtol = 0.01     # textbook value at 20 C
+        @test esat(273.16)≈611 rtol=1e-12
+        @test esat(293.15)≈2339 rtol=0.01     # textbook value at 20 C
         @test qsat(293.15, 101300) ≈ 0.622 * esat(293.15) / 101300
-        @test desat(285.0) ≈ (esat(285.0 + 1e-4) - esat(285.0 - 1e-4)) / 2e-4 rtol = 1e-8
+        @test desat(285.0)≈(esat(285.0 + 1e-4) - esat(285.0 - 1e-4)) / 2e-4 rtol=1e-8
     end
 
     @testset "run loop" begin
