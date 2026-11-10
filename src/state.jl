@@ -24,7 +24,7 @@ Base.@kwdef mutable struct MixedLayerState{T <: Real}
     ws::T = NaN             # large-scale vertical velocity [m s-1]
     wf::T = NaN             # growth due to radiative divergence [m s-1]
     we::T = NaN             # entrainment velocity [m s-1]
-    wstar::T = 0            # convective velocity scale [m s-1]
+    wstar::T = 0.0            # convective velocity scale [m s-1]
 
     theta::T = NaN          # potential temperature [K]
     dtheta::T = NaN         # potential temperature jump at h [K]
@@ -46,8 +46,8 @@ Base.@kwdef mutable struct MixedLayerState{T <: Real}
     CO2::T = NaN            # CO2 [ppm]
     dCO2::T = NaN           # CO2 jump at h [ppm]
     wCO2::T = NaN           # surface CO2 flux [ppm m s-1]
-    wCO2A::T = 0            # surface assimilation CO2 flux [ppm m s-1]
-    wCO2R::T = 0            # surface respiration CO2 flux [ppm m s-1]
+    wCO2A::T = 0.0            # surface assimilation CO2 flux [ppm m s-1]
+    wCO2R::T = 0.0            # surface respiration CO2 flux [ppm m s-1]
     wCO2e::T = NaN          # entrainment CO2 flux [ppm m s-1]
 
     P_h::T = NaN            # pressure at the top [Pa]
@@ -130,10 +130,10 @@ end
 
 "State of the cumulus scheme: cloud core and transition layer."
 Base.@kwdef mutable struct CumulusState{T <: Real}
-    ac::T = 0               # cloud core fraction [-]
-    M::T = 0                # cloud core mass flux [m s-1]
-    wqM::T = 0              # cloud core moisture flux [kg kg-1 m s-1]
-    wCO2M::T = 0            # cloud core CO2 flux [ppm m s-1]
+    ac::T = 0.0               # cloud core fraction [-]
+    M::T = 0.0                # cloud core mass flux [m s-1]
+    wqM::T = 0.0              # cloud core moisture flux [kg kg-1 m s-1]
+    wCO2M::T = 0.0            # cloud core CO2 flux [ppm m s-1]
     dz_h::T = NaN           # transition layer thickness [m]
     dztend::T = NaN         # tendency of dz_h [m s-1]
 end
