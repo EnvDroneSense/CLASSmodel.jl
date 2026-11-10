@@ -20,7 +20,7 @@ out = run_model(x)
 
 The output is a `NamedTuple` of vectors, so it is also a table in the sense of
 [Tables.jl](https://tables.juliadata.org): `DataFrame(out)` and `CSV.write("run.csv", out)` work
-once those packages are loaded. `out.t` is the time of day in hours.
+once those packages are loaded. `out.t` is the time in hours since midnight of the start day.
 
 ## Switches
 
@@ -54,7 +54,7 @@ s.mixed_layer.h
 ## Units
 
 `wCO2` and the fluxes `wCO2*` in the output are in mg CO2 m-2 s-1; the mixed-layer
-concentrations `CO2` and `dCO2` are in ppm. `t` is the time of day in hours.
+concentrations `CO2` and `dCO2` are in ppm.
 
 ## Reference
 

@@ -14,7 +14,8 @@ const OUTPUT_NAMES = (
     ModelOutput{T}
 
 Time series of one run: a `NamedTuple` with one vector per variable (a table in the sense
-of Tables.jl). `t` is the time of day in hours. `wCO2*` are in mg CO2 m-2 s-1.
+of Tables.jl). `t` is the time in hours since midnight of the start day, so it exceeds 24
+in runs longer than a day. `wCO2*` are in mg CO2 m-2 s-1.
 """
 const ModelOutput{T} = NamedTuple{OUTPUT_NAMES, NTuple{length(OUTPUT_NAMES), Vector{T}}}
 
