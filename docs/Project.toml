@@ -1,3 +1,6 @@
 [deps]
 CLASSmodel = "352a7eb9-077e-491c-88d7-8ea6e43bd0f0"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+
+[compat]
+Documenter = "1.20.0"
