@@ -18,8 +18,9 @@ using CLASSmodel: psim, psih, ribtol, ribfun
     @test abs(ribtol(0.0, zsl, z0m, z0h)) > 1e3     # neutral: very large |L|
 
     # surface layer in a run: fluxes follow from the drag coefficient, warm surface is unstable
-    out = run_model(ModelInput(; runtime=600, sw_sl=true, wtheta=0.1, ustar=0.1))
+    out = run_model(ModelInput(; runtime = 600, sw_sl = true, wtheta = 0.1, ustar = 0.1))
     @test out.L[1] < 0 && out.Rib[1] < 0
-    @test out.ustar[1] ≈ sqrt(out.Cm[1]) * hypot(out.u[1], out.v[1], 0.0) atol = 0.5 * out.ustar[1]
+    @test out.ustar[1] ≈ sqrt(out.Cm[1]) * hypot(out.u[1], out.v[1], 0.0) atol = 0.5 *
+                                                                                 out.ustar[1]
     @test out.uw[1] ≈ -out.Cm[1] * hypot(out.u[1], out.v[1]) * out.u[1] rtol = 0.2
 end

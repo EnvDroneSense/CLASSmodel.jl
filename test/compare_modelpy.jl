@@ -4,15 +4,17 @@
 using TOML
 
 const REFERENCE = joinpath(@__DIR__, "reference", "cases.toml")
-const IMPLEMENTED = ("ml", "ml_wind_shear_fixft", "rad", "sl", "ls_js", "ls_ags_c3", "ls_ags_c4", "cu", "full")   # cases compared in full; grows with each step
+const IMPLEMENTED = ("ml", "ml_wind_shear_fixft", "rad", "sl",
+    "ls_js", "ls_ags_c3", "ls_ags_c4", "cu", "full")   # cases compared in full; grows with each step
 
 # Every element within rtol of the reference, or within `atol_frac` of the largest value of
 # the column (for values that pass through zero, where a difference of two large numbers
 # loses relative precision); equal NaN patterns. (isapprox on vectors would compare norms.)
 function elementwise_close(a, b, rtol, atol_frac)
-    atol = atol_frac * maximum(abs, filter(!isnan, b); init=0.0)
+    atol = atol_frac * maximum(abs, filter(!isnan, b); init = 0.0)
     return all(zip(a, b)) do (x, y)
-        isnan(x) || isnan(y) ? isnan(x) && isnan(y) : abs(x - y) <= max(rtol * max(abs(x), abs(y)), atol)
+        isnan(x) || isnan(y) ? isnan(x) && isnan(y) :
+        abs(x - y) <= max(rtol * max(abs(x), abs(y)), atol)
     end
 end
 

@@ -9,4 +9,4 @@ A Julia implementation of CLASS, the Chemistry Land-surface Atmosphere Soil Slab
 
 ## Licence
 
-GPL-3.0-or-later, the licence of CLASS and modelpy. The physics follows `model.py` of modelpy; the copyright of the CLASS authors (Meteorology and Air Quality section, Wageningen University and Research centre; Jordi Vila-Guerau de Arellano, Chiel van Heerwaarden, Bart van Stratum, Kees van den Dries) is kept. See [LICENSE](LICENSE).
+GPL-3.0-or-later, the licence of CLASS and modelpy. The copyright of the CLASS authors (Meteorology and Air Quality section, Wageningen University and Research centre; Jordi Vila-Guerau de Arellano, Chiel van Heerwaarden, Bart van Stratum, Kees van den Dries) is kept. See [LICENSE](LICENSE).

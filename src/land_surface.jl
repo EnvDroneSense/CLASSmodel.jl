@@ -10,7 +10,9 @@ temperature.
 function jarvis_stewart!(s::ModelState)
     x, ml = s.input, s.mixed_layer
 
-    f1 = x.sw_rad ? 1 / min(1, (0.004 * s.radiation.Swin + 0.05) / (0.81 * (0.004 * s.radiation.Swin + 1))) : one(ml.theta)
+    f1 = x.sw_rad ?
+         1 / min(1, (0.004 * s.radiation.Swin + 0.05) /
+                (0.81 * (0.004 * s.radiation.Swin + 1))) : one(ml.theta)
     f2 = x.w2 > x.wwilt ? (x.wfc - x.wwilt) / (x.w2 - x.wwilt) : 1e8
     f2 = max(f2, 1)   # no reduction when w2 is above field capacity
     f3 = 1 / exp(-x.gD * (ml.esat - ml.e) / 100)
@@ -28,7 +30,8 @@ balance, the surface fluxes (written to the mixed layer as `wtheta` and `wq`) an
 tendencies of the soil temperature, soil moisture and wet-leaf water layer.
 """
 function land_surface!(s::ModelState)
-    x, c, ml, wind, sl, ls = s.input, s.constants, s.mixed_layer, s.wind, s.surface_layer, s.land_surface
+    x, c, ml, wind, sl, ls = s.input, s.constants, s.mixed_layer, s.wind, s.surface_layer,
+    s.land_surface
     rho, cp, Lv = c.rho, c.cp, c.Lv
 
     ueff = sqrt(wind.u^2 + wind.v^2 + ml.wstar^2)
@@ -56,7 +59,8 @@ function land_surface!(s::ModelState)
     kLE = kveg + ksoil + kliq
 
     # skin temperature from the linearised energy balance
-    ls.Ts = (s.radiation.Q + rho * cp / ra * ml.theta + kLE * (dqsatdT * ml.theta - ml.qsat + ml.q) +
+    ls.Ts = (s.radiation.Q + rho * cp / ra * ml.theta +
+             kLE * (dqsatdT * ml.theta - ml.qsat + ml.q) +
              x.Lambda * ls.Tsoil) / (rho * cp / ra + kLE * dqsatdT + x.Lambda)
 
     dTs = ls.Ts - ml.theta

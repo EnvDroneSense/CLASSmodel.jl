@@ -16,13 +16,16 @@ function psih(zeta)
         x = (1 - 16 * zeta)^0.25
         return 2 * log((1 + x * x) / 2)
     else
-        return -2 / 3 * (zeta - 5 / 0.35) * exp(-0.35 * zeta) - (1 + (2 / 3) * zeta)^1.5 - (10 / 3) / 0.35 + 1
+        return -2 / 3 * (zeta - 5 / 0.35) * exp(-0.35 * zeta) - (1 + (2 / 3) * zeta)^1.5 -
+               (10 / 3) / 0.35 + 1
     end
 end
 
 # Bulk Richardson number as a function of the Obukhov length `L`.
-ribfun(L, zsl, z0m, z0h) =
-    zsl / L * (log(zsl / z0h) - psih(zsl / L) + psih(z0h / L)) / (log(zsl / z0m) - psim(zsl / L) + psim(z0m / L))^2
+function ribfun(L, zsl, z0m, z0h)
+    zsl / L * (log(zsl / z0h) - psih(zsl / L) + psih(z0h / L)) /
+    (log(zsl / z0m) - psim(zsl / L) + psim(z0m / L))^2
+end
 
 """
     ribtol(Rib, zsl, z0m, z0h)
@@ -46,7 +49,8 @@ function ribtol(Rib, zsl, z0m, z0h)
         fx = Rib - ribfun(L, zsl, z0m, z0h)
         Lstart = L - 0.001 * L
         Lend = L + 0.001 * L
-        fxdif = (-ribfun(Lstart, zsl, z0m, z0h) + ribfun(Lend, zsl, z0m, z0h)) / (Lstart - Lend)
+        fxdif = (-ribfun(Lstart, zsl, z0m, z0h) + ribfun(Lend, zsl, z0m, z0h)) /
+                (Lstart - Lend)
         L = L - fx / fxdif
         abs(L) > 1e15 && break
     end
@@ -61,7 +65,8 @@ velocity, momentum fluxes and the 2 m diagnostics. The surface values use the dr
 coefficient and the surface resistance of the previous call.
 """
 function surface_layer!(s::ModelState)
-    x, c, ml, wind, sl, ls = s.input, s.constants, s.mixed_layer, s.wind, s.surface_layer, s.land_surface
+    x, c, ml, wind, sl, ls = s.input, s.constants, s.mixed_layer, s.wind, s.surface_layer,
+    s.land_surface
 
     ueff = max(0.01, sqrt(wind.u^2 + wind.v^2 + ml.wstar^2))
     sl.thetasurf = ml.theta + ml.wtheta / (sl.Cs * ueff)

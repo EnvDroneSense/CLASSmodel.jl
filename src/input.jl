@@ -18,7 +18,7 @@ struct C4 <: PlantType end
 
 Physical constants of the model, with the usual values as defaults.
 """
-Base.@kwdef struct PhysicalConstants{T<:AbstractFloat}
+Base.@kwdef struct PhysicalConstants{T <: Real}
     Lv::T = 2.5e6           # heat of vaporization [J kg-1]
     cp::T = 1005            # specific heat of dry air [J kg-1 K-1]
     rho::T = 1.2            # density of air [kg m-3]
@@ -46,7 +46,7 @@ PhysicalConstants(args...) = PhysicalConstants{Float64}(args...)
 Parameters of the A-Gs scheme for one plant type, `plant` being [`C3`](@ref)`()`
 or [`C4`](@ref)`()`.
 """
-Base.@kwdef struct AGsParameters{T<:AbstractFloat}
+Base.@kwdef struct AGsParameters{T <: Real}
     CO2comp298::T   # CO2 compensation concentration [mg m-3]
     Q10CO2::T       # parameter of the CO2 compensation concentration [-]
     gm298::T        # mesophyll conductance at 298 K [mm s-1]
@@ -65,14 +65,18 @@ Base.@kwdef struct AGsParameters{T<:AbstractFloat}
 end
 
 AGsParameters(plant::PlantType) = AGsParameters{Float64}(plant)
-AGsParameters{T}(::C3) where {T} = AGsParameters{T}(;
-    CO2comp298=68.5, Q10CO2=1.5, gm298=7.0, Ammax298=2.2, Q10gm=2.0, T1gm=278,
-    T2gm=301, Q10Am=2.0, T1Am=281, T2Am=311, f0=0.89, ad=0.07, alpha0=0.017,
-    Kx=0.7, gmin=0.25e-3)
-AGsParameters{T}(::C4) where {T} = AGsParameters{T}(;
-    CO2comp298=4.3, Q10CO2=1.5, gm298=17.5, Ammax298=1.7, Q10gm=2.0, T1gm=286,
-    T2gm=309, Q10Am=2.0, T1Am=286, T2Am=311, f0=0.85, ad=0.15, alpha0=0.014,
-    Kx=0.7, gmin=0.25e-3)
+function AGsParameters{T}(::C3) where {T}
+    AGsParameters{T}(;
+        CO2comp298 = 68.5, Q10CO2 = 1.5, gm298 = 7.0, Ammax298 = 2.2, Q10gm = 2.0, T1gm = 278,
+        T2gm = 301, Q10Am = 2.0, T1Am = 281, T2Am = 311, f0 = 0.89, ad = 0.07, alpha0 = 0.017,
+        Kx = 0.7, gmin = 0.25e-3)
+end
+function AGsParameters{T}(::C4) where {T}
+    AGsParameters{T}(;
+        CO2comp298 = 4.3, Q10CO2 = 1.5, gm298 = 17.5, Ammax298 = 1.7, Q10gm = 2.0, T1gm = 286,
+        T2gm = 309, Q10Am = 2.0, T1Am = 286, T2Am = 311, f0 = 0.85, ad = 0.15, alpha0 = 0.014,
+        Kx = 0.7, gmin = 0.25e-3)
+end
 
 """
     ModelInput{T}(; kwargs...)
@@ -98,7 +102,7 @@ Notes:
 - `wCO2` is in mg CO2 m-2 s-1 (converted with `mair / (rho * mco2)`).
 - `c_beta = 0` is a linear water stress response.
 """
-Base.@kwdef struct ModelInput{T<:AbstractFloat}
+Base.@kwdef struct ModelInput{T <: Real}
     # time
     runtime::T = 12 * 3600      # duration of the run [s]
     dt::T = 60                  # time step [s]
@@ -198,7 +202,7 @@ Base.@kwdef struct ModelInput{T<:AbstractFloat}
     # cumulus
     dz_h::T = 150               # transition layer thickness [m]
 
-    function ModelInput{T}(args...) where {T<:AbstractFloat}
+    function ModelInput{T}(args...) where {T <: Real}
         input = new{T}(args...)
         validate(input)
         return input
@@ -212,17 +216,26 @@ ModelInput(args...) = ModelInput{Float64}(args...)
 Throw an `ArgumentError` if `input` cannot be run. Called by the
 [`ModelInput`](@ref) constructor. Checks:
 
+- every numeric field is finite
 - positive time step, run time, `h`, `Ps`, `z0m`, `z0h`
+- `dtheta != 0` when the mixed layer or the cumulus scheme is on
 - `0 <= cc <= 1`, `0 <= cveg <= 1`, `0 <= c_beta <= 1`
 - `ls_type` and `c3c4` have a known value
-- with `sw_ls`: `LAI > 0` and `wwilt < wfc <= wsat`
+- with `sw_ls`: `LAI`, `Wmax`, `wg` > 0, `0 < w2 < wsat` and `wwilt < wfc <= wsat`
+- with `sw_cu`: `dz_h > 0`
 - A-Gs (`sw_ls` with `ls_type = :ags`) needs `sw_rad`, because it uses the
   incoming shortwave radiation
 """
 function validate(x::ModelInput)
     positive(name, v) = v > 0 || throw(ArgumentError("$name must be > 0, got $v"))
-    fraction(name, v) = 0 <= v <= 1 || throw(ArgumentError("$name must be in [0, 1], got $v"))
+    fraction(name, v) = 0 <= v <= 1 ||
+                        throw(ArgumentError("$name must be in [0, 1], got $v"))
 
+    for name in fieldnames(typeof(x))
+        v = getfield(x, name)
+        v isa Real && !(v isa Bool) && !isfinite(v) &&
+            throw(ArgumentError("$name must be finite, got $v"))
+    end
     positive(:runtime, x.runtime)
     positive(:dt, x.dt)
     positive(:h, x.h)
@@ -230,16 +243,23 @@ function validate(x::ModelInput)
     positive(:z0m, x.z0m)
     positive(:z0h, x.z0h)
     x.runtime >= x.dt || throw(ArgumentError("runtime must be at least dt"))
+    (x.sw_ml || x.sw_cu) && x.dtheta == 0 &&
+        throw(ArgumentError("dtheta must be nonzero"))
     fraction(:cc, x.cc)
     fraction(:cveg, x.cveg)
     fraction(:c_beta, x.c_beta)
-    x.ls_type in (:js, :ags) || throw(ArgumentError("ls_type must be :js or :ags, got :$(x.ls_type)"))
+    x.ls_type in (:js, :ags) ||
+        throw(ArgumentError("ls_type must be :js or :ags, got :$(x.ls_type)"))
     x.c3c4 in (:c3, :c4) || throw(ArgumentError("c3c4 must be :c3 or :c4, got :$(x.c3c4)"))
     if x.sw_ls
         positive(:LAI, x.LAI)
+        positive(:Wmax, x.Wmax)
+        positive(:wg, x.wg)
+        0 < x.w2 < x.wsat || throw(ArgumentError("need 0 < w2 < wsat"))
         x.wwilt < x.wfc <= x.wsat || throw(ArgumentError("need wwilt < wfc <= wsat"))
         x.ls_type === :ags && !x.sw_rad &&
             throw(ArgumentError("ls_type = :ags needs sw_rad = true"))
     end
+    x.sw_cu && positive(:dz_h, x.dz_h)
     return x
 end

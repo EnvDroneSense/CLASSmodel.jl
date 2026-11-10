@@ -13,7 +13,8 @@ function radiation!(s::ModelState)
 
     sda = 0.409 * cos(2π * (x.doy - 173) / 365)
     hour_angle = 2π * (s.t * x.dt + x.tstart * 3600) / DAY + 2π * x.lon / 360
-    sinlea = sin(2π * x.lat / 360) * sin(sda) - cos(2π * x.lat / 360) * cos(sda) * cos(hour_angle)
+    sinlea = sin(2π * x.lat / 360) * sin(sda) -
+             cos(2π * x.lat / 360) * cos(sda) * cos(hour_angle)
     sinlea = max(sinlea, 0.0001)
 
     Ta = ml.theta * ((x.Ps - 0.1 * ml.h * c.rho * c.g) / x.Ps)^(c.Rd / c.cp)   # at 10 % of h

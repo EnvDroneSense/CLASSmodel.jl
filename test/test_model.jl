@@ -9,7 +9,7 @@ using CLASSmodel: esat, desat, qsat, init_model, step!
     end
 
     @testset "run loop" begin
-        x = ModelInput(; runtime=1000, dt=60, tstart=6, wCO2=0.2, sw_ml=false)
+        x = ModelInput(; runtime = 1000, dt = 60, tstart = 6, wCO2 = 0.2, sw_ml = false)
         s = init_model(x)
         @test s.t == 0
         @test s.mixed_layer.wCO2 ≈ 0.2 * 28.9 / (1.2 * 44)
@@ -24,7 +24,7 @@ using CLASSmodel: esat, desat, qsat, init_model, step!
         @test run_model(ModelInput{Float32}()) isa ModelOutput{Float32}
 
         # stepping by hand gives the run's state: the row of step n holds the state before it
-        y = ModelInput(; runtime=600)
+        y = ModelInput(; runtime = 600)
         s = init_model(y)
         for _ in 1:3
             step!(s)

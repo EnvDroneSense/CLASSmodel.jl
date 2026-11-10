@@ -19,7 +19,7 @@ qsat(T, p) = ε * esat(T) / p
 mg_to_ppm(c) = c.mair / (c.rho * c.mco2)
 
 "State of the mixed layer: bulk values, surface and entrainment fluxes, top diagnostics."
-Base.@kwdef mutable struct MixedLayerState{T<:AbstractFloat}
+Base.@kwdef mutable struct MixedLayerState{T <: Real}
     h::T = NaN              # ABL height [m]
     ws::T = NaN             # large-scale vertical velocity [m s-1]
     wf::T = NaN             # growth due to radiative divergence [m s-1]
@@ -65,7 +65,7 @@ Base.@kwdef mutable struct MixedLayerState{T<:AbstractFloat}
 end
 
 "State of the mixed-layer wind: components and jumps at h."
-Base.@kwdef mutable struct WindState{T<:AbstractFloat}
+Base.@kwdef mutable struct WindState{T <: Real}
     u::T = NaN              # u-wind [m s-1]
     du::T = NaN             # u-wind jump at h [m s-1]
     v::T = NaN              # v-wind [m s-1]
@@ -77,7 +77,7 @@ Base.@kwdef mutable struct WindState{T<:AbstractFloat}
 end
 
 "State of the radiation scheme."
-Base.@kwdef mutable struct RadiationState{T<:AbstractFloat}
+Base.@kwdef mutable struct RadiationState{T <: Real}
     Swin::T = NaN           # incoming shortwave radiation [W m-2]
     Swout::T = NaN          # outgoing shortwave radiation [W m-2]
     Lwin::T = NaN           # incoming longwave radiation [W m-2]
@@ -86,7 +86,7 @@ Base.@kwdef mutable struct RadiationState{T<:AbstractFloat}
 end
 
 "State of the surface layer: friction, momentum fluxes, drag, stability, surface and 2 m values."
-Base.@kwdef mutable struct SurfaceLayerState{T<:AbstractFloat}
+Base.@kwdef mutable struct SurfaceLayerState{T <: Real}
     ustar::T = NaN          # friction velocity [m s-1]
     uw::T = NaN             # surface momentum flux in u-direction [m2 s-2]
     vw::T = NaN             # surface momentum flux in v-direction [m2 s-2]
@@ -109,7 +109,7 @@ Base.@kwdef mutable struct SurfaceLayerState{T<:AbstractFloat}
 end
 
 "State of the land surface: resistance and surface fluxes."
-Base.@kwdef mutable struct LandSurfaceState{T<:AbstractFloat}
+Base.@kwdef mutable struct LandSurfaceState{T <: Real}
     Ts::T = NaN             # surface temperature [K]
     Tsoil::T = NaN          # temperature of the top soil layer [K]
     wg::T = NaN             # volumetric water content of the top soil layer [m3 m-3]
@@ -129,7 +129,7 @@ Base.@kwdef mutable struct LandSurfaceState{T<:AbstractFloat}
 end
 
 "State of the cumulus scheme: cloud core and transition layer."
-Base.@kwdef mutable struct CumulusState{T<:AbstractFloat}
+Base.@kwdef mutable struct CumulusState{T <: Real}
     ac::T = 0               # cloud core fraction [-]
     M::T = 0                # cloud core mass flux [m s-1]
     wqM::T = 0              # cloud core moisture flux [kg kg-1 m s-1]
@@ -144,7 +144,7 @@ end
 State of a running model: the (fixed) `input` and `constants`, the step counter `t`
 (number of completed steps) and the state of each component.
 """
-mutable struct ModelState{T<:AbstractFloat}
+mutable struct ModelState{T <: Real}
     input::ModelInput{T}
     constants::PhysicalConstants{T}
     plant::AGsParameters{T}     # A-Gs parameters of the plant type `input.c3c4`
@@ -162,18 +162,20 @@ end
 
 Build the initial state from `input` and compute the initial diagnostics.
 """
-function init_model(x::ModelInput{T}; constants::PhysicalConstants{T}=PhysicalConstants{T}()) where {T}
+function init_model(x::ModelInput{T}; constants::PhysicalConstants{T} = PhysicalConstants{T}()) where {T}
     plant = AGsParameters{T}(x.c3c4 == :c3 ? C3() : C4())
     s = ModelState{T}(
         x, constants, plant,
-        MixedLayerState{T}(; h=x.h, theta=x.theta, dtheta=x.dtheta, wtheta=x.wtheta,
-            q=x.q, dq=x.dq, wq=x.wq, CO2=x.CO2, dCO2=x.dCO2, wCO2=x.wCO2 * mg_to_ppm(constants)),
-        WindState{T}(; u=x.u, du=x.du, v=x.v, dv=x.dv),
-        RadiationState{T}(; Q=x.Q),
-        SurfaceLayerState{T}(; ustar=x.ustar, thetasurf=x.theta),
-        LandSurfaceState{T}(; Ts=x.Ts, Tsoil=x.Tsoil, wg=x.wg, Wl=x.Wl),
-        CumulusState{T}(; dz_h=x.dz_h),
-        0,
+        MixedLayerState{T}(;
+            h = x.h, theta = x.theta, dtheta = x.dtheta, wtheta = x.wtheta,
+            q = x.q, dq = x.dq, wq = x.wq, CO2 = x.CO2, dCO2 = x.dCO2,
+            wCO2 = x.wCO2 * mg_to_ppm(constants)),
+        WindState{T}(; u = x.u, du = x.du, v = x.v, dv = x.dv),
+        RadiationState{T}(; Q = x.Q),
+        SurfaceLayerState{T}(; ustar = x.ustar, thetasurf = x.theta),
+        LandSurfaceState{T}(; Ts = x.Ts, Tsoil = x.Tsoil, wg = x.wg, Wl = x.Wl),
+        CumulusState{T}(; dz_h = x.dz_h),
+        0
     )
 
     statistics!(s)

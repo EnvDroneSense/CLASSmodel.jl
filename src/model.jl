@@ -7,7 +7,7 @@ const OUTPUT_NAMES = (
     :wCO2M, :u, :du, :uw, :v, :dv, :vw, :T2m, :q2m, :u2m, :v2m, :e2m, :esat2m, :thetasurf,
     :thetavsurf, :qsurf, :ustar, :z0m, :z0h, :Cm, :Cs, :L, :Rib, :Swin, :Swout, :Lwin,
     :Lwout, :Q, :ra, :rs, :H, :LE, :LEliq, :LEveg, :LEsoil, :LEpot, :LEref, :G, :zlcl,
-    :RH_h, :ac, :M, :dz,
+    :RH_h, :ac, :M, :dz
 )
 
 """
@@ -16,16 +16,18 @@ const OUTPUT_NAMES = (
 Time series of one run: a `NamedTuple` with one vector per variable (a table in the sense
 of Tables.jl). `t` is the time of day in hours. `wCO2*` are in mg CO2 m-2 s-1.
 """
-const ModelOutput{T} = NamedTuple{OUTPUT_NAMES,NTuple{length(OUTPUT_NAMES),Vector{T}}}
+const ModelOutput{T} = NamedTuple{OUTPUT_NAMES, NTuple{length(OUTPUT_NAMES), Vector{T}}}
 
-empty_output(::Type{T}, n::Integer) where {T} =
+function empty_output(::Type{T}, n::Integer) where {T}
     ModelOutput{T}(ntuple(_ -> zeros(T, n), length(OUTPUT_NAMES)))
+end
 
 "Write the current state into row `s.t + 1` of `out`."
 function store!(out::ModelOutput, s::ModelState)
     i = s.t + 1
     x = s.input
-    ml, w, rad, sl, ls, cu = s.mixed_layer, s.wind, s.radiation, s.surface_layer, s.land_surface, s.cumulus
+    ml, w, rad, sl, ls, cu = s.mixed_layer,
+    s.wind, s.radiation, s.surface_layer, s.land_surface, s.cumulus
     f = mg_to_ppm(s.constants)
 
     out.t[i] = s.t * x.dt / 3600 + x.tstart

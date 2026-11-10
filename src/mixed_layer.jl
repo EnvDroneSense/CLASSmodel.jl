@@ -12,7 +12,8 @@ function statistics!(s::ModelState)
 
     ml.thetav = ml.theta + VIRT * ml.theta * ml.q
     ml.wthetav = ml.wtheta + VIRT * ml.theta * ml.wq
-    ml.dthetav = (ml.theta + ml.dtheta) * (1 + VIRT * (ml.q + ml.dq)) - ml.theta * (1 + VIRT * ml.q)
+    ml.dthetav = (ml.theta + ml.dtheta) * (1 + VIRT * (ml.q + ml.dq)) -
+                 ml.theta * (1 + VIRT * ml.q)
 
     ml.P_h = x.Ps - c.rho * c.g * ml.h
     ml.T_h = ml.theta - c.g / c.cp * ml.h
@@ -57,7 +58,8 @@ Entrainment, fluxes and tendencies of the mixed layer. Without the surface layer
 momentum fluxes follow from `ustar` and the wind direction.
 """
 function mixed_layer!(s::ModelState)
-    x, c, ml, w, sl, cu = s.input, s.constants, s.mixed_layer, s.wind, s.surface_layer, s.cumulus
+    x, c, ml, w, sl, cu = s.input, s.constants, s.mixed_layer, s.wind, s.surface_layer,
+    s.cumulus
 
     x.sw_sl || prescribed_stress!(s)
 
