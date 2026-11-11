@@ -8,6 +8,40 @@ using CLASSmodel: esat, desat, qsat, init_model, step!
         @test desat(285.0)≈(esat(285.0 + 1e-4) - esat(285.0 - 1e-4)) / 2e-4 rtol=1e-8
     end
 
+    @testset "variable_info" begin
+        names = CLASSmodel.OUTPUT_NAMES
+        @test keys(CLASSmodel.VARIABLE_INFO) == names    # every output variable, no extra
+        for name in names
+            info = variable_info(name)
+            @test all(s -> s isa String && !isempty(s), (info.title, info.unit, info.symbol))
+        end
+        @test variable_info(:h) == (title = "Boundary-layer height", unit = "m", symbol = "h")
+        @test variable_info(:wCO2).unit == "mg CO2 m-2 s-1"    # docs: units section
+        @test variable_info(:CO2).unit == "ppm" && variable_info(:dCO2).unit == "ppm"
+        @test variable_info(:wtheta).unit == "K m s-1"         # ModelInput field comments
+        @test variable_info(:Cm).unit == "-"
+        @test_throws ArgumentError variable_info(:nonsense)
+    end
+
+    @testset "mixed_layer_profile" begin
+        x = ModelInput(; runtime = 3600, gammatheta = 0.005, gammaq = -2e-6, dq = -0.002)
+        out = run_model(x)
+        p = mixed_layer_profile(x, out, 1; ztop = 1000)
+        @test p.z == [0, 200, 200, 1000]
+        @test p.theta ≈ [288, 288, 289, 289 + 0.005 * 800]
+        @test p.q ≈ [0.008, 0.008, 0.006, 0.006 - 2e-6 * 800]
+
+        i = length(out.h)                                    # later row: uses that row's state
+        p = mixed_layer_profile(x, out, i)
+        @test p.z == [0, out.h[i], out.h[i], 2 * out.h[i]]
+        @test p.theta[1] == out.theta[i] && p.theta[3] - p.theta[2] ≈ out.dtheta[i]
+        @test p.q[3] - p.q[2] ≈ out.dq[i]
+        @test p.theta[4] - p.theta[3] ≈ x.gammatheta * out.h[i]
+
+        @test_throws BoundsError mixed_layer_profile(x, out, length(out.h) + 1)
+        @test_throws ArgumentError mixed_layer_profile(x, out, 1; ztop = 100)
+    end
+
     @testset "run loop" begin
         x = ModelInput(; runtime = 1000, dt = 60, tstart = 6, wCO2 = 0.2, sw_ml = false)
         s = init_model(x)

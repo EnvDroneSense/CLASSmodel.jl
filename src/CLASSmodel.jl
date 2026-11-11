@@ -28,7 +28,7 @@ For a run step by step use [`init_model`](@ref) and [`step!`](@ref).
 module CLASSmodel
 
 export ModelInput, PhysicalConstants, AGsParameters, PlantType, C3, C4, validate
-export ModelOutput, run_model
+export ModelOutput, run_model, mixed_layer_profile, variable_info
 export ModelState, init_model, step!
 
 include("input.jl")
@@ -39,6 +39,7 @@ include("surface_layer.jl")
 include("ags.jl")
 include("land_surface.jl")
 include("cumulus.jl")
+include("variables.jl")
 include("model.jl")
 
 end

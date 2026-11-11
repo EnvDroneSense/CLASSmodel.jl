@@ -19,6 +19,31 @@ in runs longer than a day. `wCO2*` are in mg CO2 m-2 s-1.
 """
 const ModelOutput{T} = NamedTuple{OUTPUT_NAMES, NTuple{length(OUTPUT_NAMES), Vector{T}}}
 
+"""
+    mixed_layer_profile(input, out, i; ztop = 2 * out.h[i]) -> NamedTuple
+
+Profiles of potential temperature `theta` [K] and specific humidity `q` [kg kg-1] at row
+`i` of `out`, which must come from `run_model(input)`. Below the height `h` both are
+constant; at `h` they jump by `dtheta` and `dq`; above they follow the lapse rates
+`gammatheta` and `gammaq` of `input`, up to `ztop`.
+
+Returns `(z, theta, q)`: the corner points of the profile. `z` holds `h` twice, so a line
+through the points shows the jump.
+"""
+function mixed_layer_profile(
+        input::ModelInput, out::ModelOutput, i::Integer; ztop::Real = 2 * out.h[i])
+    checkbounds(out.h, i)
+    h = out.h[i]
+    ztop > h || throw(ArgumentError("ztop must exceed the boundary-layer height $h"))
+    theta, dtheta, q, dq = out.theta[i], out.dtheta[i], out.q[i], out.dq[i]
+    above = ztop - h
+    return (
+        z = [zero(h), h, h, ztop],
+        theta = [theta, theta, theta + dtheta, theta + dtheta + input.gammatheta * above],
+        q = [q, q, q + dq, q + dq + input.gammaq * above]
+    )
+end
+
 function empty_output(::Type{T}, n::Integer) where {T}
     ModelOutput{T}(ntuple(_ -> zeros(T, n), length(OUTPUT_NAMES)))
 end
