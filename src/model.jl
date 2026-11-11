@@ -22,13 +22,8 @@ const ModelOutput{T} = NamedTuple{OUTPUT_NAMES, NTuple{length(OUTPUT_NAMES), Vec
 """
     mixed_layer_profile(input, out, i; ztop = 2 * out.h[i]) -> NamedTuple
 
-Profiles of potential temperature `theta` [K] and specific humidity `q` [kg kg-1] at row
-`i` of `out`, which must come from `run_model(input)`. Below the height `h` both are
-constant; at `h` they jump by `dtheta` and `dq`; above they follow the lapse rates
-`gammatheta` and `gammaq` of `input`, up to `ztop`.
-
-Returns `(z, theta, q)`: the corner points of the profile. `z` holds `h` twice, so a line
-through the points shows the jump.
+Corner points `(z, theta, q)` of the profiles at row `i` of `run_model(input)`: constant up to `h`,
+a jump at `h`, then the lapse rates of `input` up to `ztop`.
 """
 function mixed_layer_profile(
         input::ModelInput, out::ModelOutput, i::Integer; ztop::Real = 2 * out.h[i])

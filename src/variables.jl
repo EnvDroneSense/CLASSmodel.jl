@@ -76,10 +76,7 @@ const VARIABLE_INFO = (
 """
     variable_info(name::Symbol) -> NamedTuple
 
-Title, unit and symbol of the output variable `name`, as strings:
-`variable_info(:h)` is `(title = "Boundary-layer height", unit = "m", symbol = "h")`.
-Dimensionless variables have the unit `"-"`. Throws an `ArgumentError` for a name that is
-not in `ModelOutput`.
+Title, unit and symbol of the output variable `name`; the unit of a dimensionless variable is `"-"`.
 """
 function variable_info(name::Symbol)
     haskey(VARIABLE_INFO, name) || throw(ArgumentError("unknown output variable :$name"))
