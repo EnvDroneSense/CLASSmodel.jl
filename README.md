@@ -5,7 +5,7 @@
 [![Build Status](https://github.com/EnvDroneSense/CLASSmodel.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/EnvDroneSense/CLASSmodel.jl/actions/workflows/CI.yml?query=branch%3Amain)
 [![Coverage](https://codecov.io/gh/EnvDroneSense/CLASSmodel.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/EnvDroneSense/CLASSmodel.jl)
 
-A Julia implementation of CLASS, the Chemistry Land-surface Atmosphere Soil Slab model: a mixed-layer model of the convective boundary layer coupled to a land surface. It is a port of [modelpy](https://github.com/classmodel/modelpy), the Python version of CLASS, and reproduces its results to round-off.
+A Julia implementation of CLASS, the Chemistry Land-surface Atmosphere Soil Slab model: a mixed-layer model of the convective boundary layer coupled to a land surface. It is a port of [modelpy](https://github.com/classmodel/modelpy), the Python version of CLASS, and reproduces its results to round-off. It adds a diurnal cycle of the surface fluxes, a sea surface, a cumulus link to the radiation, and gas-phase chemistry of 22 species.
 
 ## Installation
 
@@ -24,7 +24,17 @@ out = run_model(x)       # a NamedTuple of vectors, also a table (Tables.jl)
 out.h[end]               # boundary layer height at the end of the run [m]
 ```
 
-`init_model` and `step!` advance the model one time step at a time. See the [documentation](https://EnvDroneSense.github.io/CLASSmodel.jl/stable/) for the switches, the output variables and their units.
+Switch on the chemistry with `sw_chem = true`. The mixing ratios of the 22 species (`out.O3`, `out.NO2`, ...) are in ppb.
+
+```julia
+x = ModelInput(; runtime = 3600, sw_chem = true)
+out = run_model(x)
+out.NO2[end], out.phi[end]
+```
+
+`init_model` and `step!` advance the model one time step at a time. `input_info` and `variable_info` give the title, unit and symbol of each input and output. See the [documentation](https://EnvDroneSense.github.io/CLASSmodel.jl/stable/) for the switches, the output variables and their units.
+
+To change the code, read [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Licence
 

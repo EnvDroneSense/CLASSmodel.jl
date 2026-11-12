@@ -14,7 +14,13 @@ makedocs(;
         assets = String[]
     ),
     pages = [
-        "Home" => "index.md"
+        "Home" => "index.md",
+        "Switches" => "switches.md",
+        "Species and chemistry" => "chemistry.md",
+        "Inputs" => "inputs.md",
+        "Outputs" => "outputs.md",
+        "Running the model" => "running.md",
+        "API" => "api.md"
     ]
 )
 
