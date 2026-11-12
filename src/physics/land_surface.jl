@@ -10,10 +10,9 @@ temperature.
 function jarvis_stewart!(s::ModelState)
     x, ml = s.input, s.mixed_layer
 
-    f1 = x.sw_rad ?
-         1 / min(
-        1, (0.004 * s.radiation.Swin + 0.05) /
-           (0.81 * (0.004 * s.radiation.Swin + 1))) : one(ml.theta)
+    Swin = s.radiation.Swin
+    f1 = x.sw_rad ? 1 / min(1, (0.004 * Swin + 0.05) / (0.81 * (0.004 * Swin + 1))) :
+         one(ml.theta)
     f2 = x.w2 > x.wwilt ? (x.wfc - x.wwilt) / (x.w2 - x.wwilt) : 1e8
     f2 = max(f2, 1)   # no reduction when w2 is above field capacity
     f3 = 1 / exp(-x.gD * (ml.esat - ml.e) / 100)
@@ -32,11 +31,10 @@ tendencies of the soil temperature, soil moisture and wet-leaf water layer. With
 the fluxes are those of open water at the fixed `Ts`; `G` and `LEref` are `NaN`.
 """
 function land_surface!(s::ModelState)
-    x, c, ml, wind, sl, ls = s.input, s.constants, s.mixed_layer, s.wind, s.surface_layer,
-    s.land_surface
+    x, c, ml, sl, ls = s.input, s.constants, s.mixed_layer, s.surface_layer, s.land_surface
     rho, cp, Lv = c.rho, c.cp, c.Lv
 
-    ueff = sqrt(wind.u^2 + wind.v^2 + ml.wstar^2)
+    ueff = effective_wind(s)
     sl.ra = x.sw_sl ? (sl.Cs * ueff)^-1 : ueff / max(1e-3, sl.ustar)^2
 
     # thermodynamic variables at the mixed-layer temperature

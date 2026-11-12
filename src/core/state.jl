@@ -1,6 +1,4 @@
-# Model state: the input, the constants and one state struct per component. Each
-# struct holds the variables that are stored in the output; the components add the
-# rest when they are implemented.
+# Model state: the input, the constants and one state struct per component.
 
 const ε = 0.622     # ratio of the molar masses of water vapor and dry air [-]
 const VIRT = 0.61   # virtual temperature coefficient, Rv / Rd - 1 [-]
@@ -24,7 +22,7 @@ Base.@kwdef mutable struct MixedLayerState{T <: Real}
     ws::T = NaN             # large-scale vertical velocity [m s-1]
     wf::T = NaN             # growth due to radiative divergence [m s-1]
     we::T = NaN             # entrainment velocity [m s-1]
-    wstar::T = 0.0            # convective velocity scale [m s-1]
+    wstar::T = 0.0          # convective velocity scale [m s-1]
 
     theta::T = NaN          # potential temperature [K]
     dtheta::T = NaN         # potential temperature jump at h [K]
@@ -46,8 +44,8 @@ Base.@kwdef mutable struct MixedLayerState{T <: Real}
     CO2::T = NaN            # CO2 [ppm]
     dCO2::T = NaN           # CO2 jump at h [ppm]
     wCO2::T = NaN           # surface CO2 flux [ppm m s-1]
-    wCO2A::T = 0.0            # surface assimilation CO2 flux [ppm m s-1]
-    wCO2R::T = 0.0            # surface respiration CO2 flux [ppm m s-1]
+    wCO2A::T = 0.0          # surface assimilation CO2 flux [ppm m s-1]
+    wCO2R::T = 0.0          # surface respiration CO2 flux [ppm m s-1]
     wCO2e::T = NaN          # entrainment CO2 flux [ppm m s-1]
 
     S::T = NaN              # passive scalar [S]
@@ -138,11 +136,11 @@ end
 
 "State of the cumulus scheme: cloud core and transition layer."
 Base.@kwdef mutable struct CumulusState{T <: Real}
-    ac::T = 0.0               # cloud core fraction [-]
-    M::T = 0.0                # cloud core mass flux [m s-1]
-    wqM::T = 0.0              # cloud core moisture flux [kg kg-1 m s-1]
-    wCO2M::T = 0.0            # cloud core CO2 flux [ppm m s-1]
-    wSM::T = 0.0              # cloud core scalar flux [S m s-1]
+    ac::T = 0.0             # cloud core fraction [-]
+    M::T = 0.0              # cloud core mass flux [m s-1]
+    wqM::T = 0.0            # cloud core moisture flux [kg kg-1 m s-1]
+    wCO2M::T = 0.0          # cloud core CO2 flux [ppm m s-1]
+    wSM::T = 0.0            # cloud core scalar flux [S m s-1]
     dz_h::T = NaN           # transition layer thickness [m]
     dztend::T = NaN         # tendency of dz_h [m s-1]
 end
@@ -163,7 +161,7 @@ function SpeciesState(x::ModelInput{T}) where {T}
         zeros(T, NSPECIES), zeros(T, NSPECIES), zeros(T, NSPECIES))
 end
 
-"State of the chemistry: the scheme, the rate constants and the work arrays of the solver."
+"State of the chemistry: the scheme, the rate constants, the solver work arrays, diagnostics."
 mutable struct ChemistryState{T <: Real}
     scheme::ChemistryScheme{T}
     Kcbl::Vector{T}         # rate constants in the mixed layer
@@ -184,8 +182,8 @@ end
 """
     ModelState{T}
 
-State of a running model: the (fixed) `input` and `constants`, the step counter `t`
-(number of completed steps) and the state of each component.
+State of a running model: the fixed `input` and `constants`, the number of completed steps
+`t` and the state of each component.
 """
 mutable struct ModelState{T <: Real}
     input::ModelInput{T}

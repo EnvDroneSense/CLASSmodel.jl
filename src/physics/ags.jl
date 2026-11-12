@@ -32,6 +32,13 @@ function E1(x)
     return h * exp(-x)
 end
 
+# Value at temperature `T` of a rate with the value `v298` at 298 K, the factor `Q10` per
+# 10 K, and a decrease below `T1` and above `T2`.
+function q10_response(v298, Q10, T1, T2, T)
+    return v298 * Q10^(0.1 * (T - 298)) /
+           ((1 + exp(0.3 * (T1 - T))) * (1 + exp(0.3 * (T - T2))))
+end
+
 """
     ags!(s::ModelState)
 
@@ -48,10 +55,7 @@ function ags!(s::ModelState)
 
     # CO2 compensation concentration and mesophyll conductance
     CO2comp = p.CO2comp298 * rho * p.Q10CO2^(0.1 * (sl.thetasurf - 298))
-    gm = p.gm298 * p.Q10gm^(0.1 * (sl.thetasurf - 298)) /
-         ((1 + exp(0.3 * (p.T1gm - sl.thetasurf))) *
-          (1 + exp(0.3 * (sl.thetasurf - p.T2gm))))
-    gm = gm / 1000   # mm s-1 to m s-1
+    gm = q10_response(p.gm298, p.Q10gm, p.T1gm, p.T2gm, sl.thetasurf) / 1000   # [m s-1]
 
     # CO2 concentration inside the leaf
     fmin0 = p.gmin / c.nuco2q - 1 / 9 * gm
@@ -66,9 +70,7 @@ function ags!(s::ModelState)
     ci = cfrac * (co2abs - CO2comp) + CO2comp
 
     # maximal gross assimilation, with the effect of soil moisture stress
-    Ammax = p.Ammax298 * p.Q10Am^(0.1 * (sl.thetasurf - 298)) /
-            ((1 + exp(0.3 * (p.T1Am - sl.thetasurf))) *
-             (1 + exp(0.3 * (sl.thetasurf - p.T2Am))))
+    Ammax = q10_response(p.Ammax298, p.Q10Am, p.T1Am, p.T2Am, sl.thetasurf)
     betaw = clamp((x.w2 - x.wwilt) / (x.wfc - x.wwilt), 1e-3, 1)
     if x.c_beta == 0
         fstr = betaw

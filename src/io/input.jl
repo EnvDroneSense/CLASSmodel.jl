@@ -4,12 +4,15 @@
 const SPECIES = (:Inert, :O3, :O1D, :NO, :NO2, :CH4, :CH2O, :CH3O2, :MVK, :ISO, :RO2, :OH,
     :HO2, :CO, :H2O, :Product, :O2, :N2, :HNO3, :H2O2, :NO3, :N2O5)
 const NSPECIES = length(SPECIES)
+species_index(name) = something(findfirst(==(name), SPECIES))
 const NREACTIONS = 28   # reactions of the chemistry scheme, see reactions.jl
 # default mixing ratios [ppb] and surface fluxes [ppb m s-1]
 const SPECIES_ZERO = ntuple(_ -> 0.0, NSPECIES)
-const SPECIES_C0 = float.((0, 30, 0, 0.4, 0.6, 1724, 0, 0, 0, 0, 0, 0, 0, 100, 0, 0, 0.2e9, 0.8e9,
+const SPECIES_C0 = float.((
+    0, 30, 0, 0.4, 0.6, 1724, 0, 0, 0, 0, 0, 0, 0, 100, 0, 0, 0.2e9, 0.8e9,
     0, 0, 0, 0))
-const SPECIES_WC0 = float.((1, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+const SPECIES_WC0 = float.((
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
 
 """
     PlantType
@@ -187,12 +190,12 @@ Base.@kwdef struct ModelInput{T <: Real}
     wS::T = 0                   # surface kinematic scalar flux [S m s-1]
 
     # chemical species, in the order of SPECIES
-    C::NTuple{NSPECIES, T} = SPECIES_C0   # initial mixing ratio [ppb]
-    dC::NTuple{NSPECIES, T} = SPECIES_ZERO           # initial jump at h [ppb]
-    gammaC::NTuple{NSPECIES, T} = SPECIES_ZERO       # lapse rate above h [ppb m-1]
-    advC::NTuple{NSPECIES, T} = SPECIES_ZERO         # advection [ppb s-1]
-    wC::NTuple{NSPECIES, T} = SPECIES_WC0 # surface flux [ppb m s-1]
-    sw_wC::NTuple{NSPECIES, Int} = ntuple(_ -> 0, NSPECIES)            # flux mode: 0 constant, 1 sine, 2 sun
+    C::NTuple{NSPECIES, T} = SPECIES_C0                       # initial mixing ratio [ppb]
+    dC::NTuple{NSPECIES, T} = SPECIES_ZERO                    # initial jump at h [ppb]
+    gammaC::NTuple{NSPECIES, T} = SPECIES_ZERO                # lapse rate above h [ppb m-1]
+    advC::NTuple{NSPECIES, T} = SPECIES_ZERO                  # advection [ppb s-1]
+    wC::NTuple{NSPECIES, T} = SPECIES_WC0                     # surface flux [ppb m s-1]
+    sw_wC::NTuple{NSPECIES, Int} = ntuple(_ -> 0, NSPECIES)   # flux mode: 0 constant, 1 sine, 2 sun
 
     # chemistry, used with sw_chem
     sw_chem_constant::Bool = true   # rates at the reference state instead of the mixed layer
@@ -290,11 +293,12 @@ Throw an `ArgumentError` if `input` cannot be run. Called by the
   incoming shortwave radiation
 """
 function validate(x::ModelInput)
-    positive(name, v) = v > 0 || throw(ArgumentError("$name must be > 0, got $v"))
-    function fraction(name, v)
-        0 <= v <= 1 ||
-            throw(ArgumentError("$name must be in [0, 1], got $v"))
+    function check(ok, name, rule)
+        ok || throw(ArgumentError("$name must be $rule, got $(getfield(x, name))"))
     end
+    positive(name) = check(getfield(x, name) > 0, name, "> 0")
+    nonnegative(name) = check(getfield(x, name) >= 0, name, ">= 0")
+    fraction(name) = check(0 <= getfield(x, name) <= 1, name, "in [0, 1]")
 
     for name in fieldnames(typeof(x))
         field = getfield(x, name)
@@ -303,40 +307,26 @@ function validate(x::ModelInput)
                 throw(ArgumentError("$name must be finite, got $v"))
         end
     end
-    all(>=(0), x.C) || throw(ArgumentError("C must be >= 0, got $(x.C)"))
-    all(in((0, 1, 2)), x.sw_wC) || throw(ArgumentError("sw_wC must be 0, 1 or 2, got $(x.sw_wC)"))
-    positive(:runtime, x.runtime)
-    positive(:dt, x.dt)
-    positive(:sinperiod, x.sinperiod)
-    positive(:h, x.h)
-    positive(:Ps, x.Ps)
-    for name in (:P_ref, :Tcbl_ref, :Tft_ref)
-        positive(name, getfield(x, name))
-    end
-    for name in (:qcbl_ref, :qft_ref, :stocoef)
-        getfield(x, name) >= 0 || throw(ArgumentError("$name must be >= 0"))
-    end
-    0 <= x.tod_ref <= 24 || throw(ArgumentError("tod_ref must be in [0, 24], got $(x.tod_ref)"))
-    positive(:z0m, x.z0m)
-    positive(:z0h, x.z0h)
+    check(all(>=(0), x.C), :C, ">= 0")
+    check(all(in((0, 1, 2)), x.sw_wC), :sw_wC, "0, 1 or 2")
+    foreach(positive, (:runtime, :dt, :sinperiod, :h, :Ps, :P_ref, :Tcbl_ref, :Tft_ref))
+    foreach(nonnegative, (:qcbl_ref, :qft_ref, :stocoef))
+    check(0 <= x.tod_ref <= 24, :tod_ref, "in [0, 24]")
+    foreach(positive, (:z0m, :z0h))
     x.runtime >= x.dt || throw(ArgumentError("runtime must be at least dt"))
     (x.sw_ml || x.sw_cu) && x.dtheta == 0 &&
         throw(ArgumentError("dtheta must be nonzero"))
-    fraction(:cc, x.cc)
-    fraction(:cveg, x.cveg)
-    fraction(:c_beta, x.c_beta)
+    foreach(fraction, (:cc, :cveg, :c_beta))
     x.ls_type in (:js, :ags) ||
         throw(ArgumentError("ls_type must be :js or :ags, got :$(x.ls_type)"))
     x.c3c4 in (:c3, :c4) || throw(ArgumentError("c3c4 must be :c3 or :c4, got :$(x.c3c4)"))
     if x.sw_ls && !x.sw_sea
-        positive(:LAI, x.LAI)
-        positive(:Wmax, x.Wmax)
-        positive(:wg, x.wg)
+        foreach(positive, (:LAI, :Wmax, :wg))
         0 < x.w2 < x.wsat || throw(ArgumentError("need 0 < w2 < wsat"))
         x.wwilt < x.wfc <= x.wsat || throw(ArgumentError("need wwilt < wfc <= wsat"))
         x.ls_type === :ags && !x.sw_rad &&
             throw(ArgumentError("ls_type = :ags needs sw_rad = true"))
     end
-    x.sw_cu && positive(:dz_h, x.dz_h)
+    x.sw_cu && positive(:dz_h)
     return x
 end

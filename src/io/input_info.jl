@@ -60,9 +60,11 @@ const INPUT_INFO = (
     sw_reactions = choice("Reaction switches", "sw_reactions", (false, true)),
     tod_ref = num("Reference time of the day", "h UTC", "tod_ref", 0, 24),
     Tcbl_ref = num("Reference temperature of the mixed layer", "K", "Tcbl_ref", 250, 320),
-    Tft_ref = num("Reference temperature of the free troposphere", "K", "Tft_ref", 250, 320),
+    Tft_ref = num(
+        "Reference temperature of the free troposphere", "K", "Tft_ref", 250, 320),
     qcbl_ref = num("Reference humidity of the mixed layer", "kg kg-1", "qcbl_ref", 0, 0.03),
-    qft_ref = num("Reference humidity of the free troposphere", "kg kg-1", "qft_ref", 0, 0.03),
+    qft_ref = num(
+        "Reference humidity of the free troposphere", "kg kg-1", "qft_ref", 0, 0.03),
     P_ref = num("Reference pressure", "Pa", "P_ref", 50000, 105000),
     stocoef = num("OH yield of RO2 + HO2", "-", "stocoef", 0, 10),
     u = num("Initial u wind", "m s-1", "u", -20, 20),
@@ -115,11 +117,10 @@ const INPUT_INFO = (
 """
     input_info(name::Symbol) -> NamedTuple
 
-Title, unit and symbol of the `ModelInput` field `name`, with the range `min` and `max` for a
-slider (not a validity rule; see [`validate`](@ref)). The unit is the model unit, `"-"` for a
-dimensionless field. A species field (`C`, `dC`, ...) holds one value for each species, and `sw_reactions` one
-switch for each reaction; the entry gives the range of one value. A switch has `min = max = nothing`; a `Symbol` field has `options`
-instead of a range (`sw_wC`: the modes 0, 1 and 2). The typical value is the default of `ModelInput()`.
+Title, unit and symbol of the `ModelInput` field `name`, with a slider range `min` to `max`
+(not a validity rule, see [`validate`](@ref)). A switch has `min = max = nothing`, a `Symbol`
+or mode field has `options`. For a tuple field (`C`, `sw_reactions`, ...) the entry is for
+one value.
 """
 function input_info(name::Symbol)
     haskey(INPUT_INFO, name) || throw(ArgumentError("unknown input field :$name"))

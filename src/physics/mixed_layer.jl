@@ -3,17 +3,17 @@
 """
     prescribed_fluxes!(s::ModelState)
 
-Set the surface fluxes of heat and moisture of the current time to a half sine, for the
-switches `sw_wtheta` and `sw_wq`. The land surface sets the fluxes itself, so `sw_ls`
-turns this off. The species fluxes with `sw_wC = 1` follow the same sine, and with `sw_wC = 2` the sine of the solar
-elevation divided by its noon value, zero at night; both also with `sw_ls`. The flux of a step is the one at the end of the step, as in the C++ model:
-the input value at `sinperiod / 2`, negative after `sinperiod`, no clipping.
+Set the prescribed surface fluxes. Without `sw_ls`, `sw_wtheta` and `sw_wq` give the heat
+and moisture fluxes a half sine. The species flux mode `sw_wC` is 1 for the same sine and 2
+for the solar elevation divided by its noon value. As in the C++ model, a step uses the flux
+at its end and the sine is not clipped.
 """
 function prescribed_fluxes!(s::ModelState)
     x, ml, sp = s.input, s.mixed_layer, s.species
     sine = sin(pi / x.sinperiod * (s.t + 1) * x.dt)
     sun = any(==(2), x.sw_wC) ?
-          max(solar_elevation(x, (s.t + 1) * x.dt + x.tstart * 3600), 0) / solar_elevation_max(x) : zero(sine)
+          max(solar_elevation(x, utc_seconds(x, s.t + 1)), 0) / solar_elevation_max(x) :
+          zero(sine)
     if !x.sw_ls
         x.sw_wtheta && (ml.wtheta = x.wtheta * sine)
         x.sw_wq && (ml.wq = x.wq * sine)
@@ -70,14 +70,13 @@ end
 function prescribed_stress!(s::ModelState)
     w, sl = s.wind, s.surface_layer
     speed = hypot(w.u, w.v)
-    # no wind, no stress
     sl.uw = iszero(speed) ? zero(speed) : -sl.ustar^2 * w.u / speed
     sl.vw = iszero(speed) ? zero(speed) : -sl.ustar^2 * w.v / speed
     return nothing
 end
 
-# Tendencies of a mixed-layer scalar and of its jump at h: surface, entrainment and cloud
-# flux, advection, lapse rate `gamma` above and the growth of the layer relative to it.
+# Tendencies of a mixed-layer scalar and of its jump at h, from the surface, entrainment and
+# cloud fluxes, the advection, the lapse rate above h and the growth relative to it.
 function scalar_tendencies(flux, flux_e, flux_M, adv, gamma, h, wrel_ft)
     tend = (flux - flux_e - flux_M) / h + adv
     return tend, gamma * wrel_ft - tend
@@ -121,15 +120,14 @@ function mixed_layer!(s::ModelState)
     ml.wqe = -ml.we * ml.dq
     ml.wCO2e = -ml.we * ml.dCO2
     ml.wSe = -ml.we * ml.dS
-    @. s.species.wCe = -ml.we * s.species.dC
 
     # growth of the layer relative to the free troposphere, and of the layer itself
     wrel = ml.we + ml.wf - cu.M
     ml.htend = wrel + ml.ws
 
     wrel_ft = wrel + ws_ft
-    ml.thetatend = (ml.wtheta - ml.wthetae) / ml.h + x.advtheta
-    ml.dthetatend = x.gammatheta * wrel_ft - ml.thetatend
+    ml.thetatend, ml.dthetatend = scalar_tendencies(
+        ml.wtheta, ml.wthetae, 0, x.advtheta, x.gammatheta, ml.h, wrel_ft)
     ml.qtend, ml.dqtend = scalar_tendencies(
         ml.wq, ml.wqe, cu.wqM, x.advq, x.gammaq, ml.h, wrel_ft)
     ml.CO2tend, ml.dCO2tend = scalar_tendencies(
@@ -138,6 +136,7 @@ function mixed_layer!(s::ModelState)
         ml.wS, ml.wSe, cu.wSM, x.advS, x.gammaS, ml.h, wrel_ft)
     sp = s.species
     for i in 1:NSPECIES
+        sp.wCe[i] = -ml.we * sp.dC[i]
         sp.Ctend[i], sp.dCtend[i] = scalar_tendencies(
             sp.wC[i], sp.wCe[i], sp.wCM[i], x.advC[i], x.gammaC[i], ml.h, wrel_ft)
     end

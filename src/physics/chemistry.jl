@@ -2,25 +2,23 @@
 
 const MW_AIR = 28.97   # molar mass of dry air [g mol-1]
 const MW_H2O = 18.0    # molar mass of water [g mol-1]
-const I_H2O = something(findfirst(==(:H2O), SPECIES))
-const I_NO = something(findfirst(==(:NO), SPECIES))
-const I_NO2 = something(findfirst(==(:NO2), SPECIES))
-const I_O3 = something(findfirst(==(:O3), SPECIES))
+const I_H2O, I_NO, I_NO2, I_O3 = species_index.((:H2O, :NO, :NO2, :O3))
 const I_R05 = something(findfirst(r -> r.name == :r05, REACTIONS))   # NO2 photolysis
 const I_R21 = something(findfirst(r -> r.name == :r21, REACTIONS))   # NO + O3
+
+# Specific humidity [kg kg-1] as a mixing ratio of H2O [ppb].
+h2o_ppb(q) = q * 1e9 * MW_AIR / MW_H2O
 
 """
     rate_constants!(K, scheme, p, T, q, coszen, cloud)
 
-Fill `K` with the rate constant of each reaction that `scheme` runs, at pressure `p` [Pa],
-temperature `T` [K] and specific humidity `q`. The unit is s-1 for the first order, and
-ppb-1 s-1 for the second order. A photolysis rate is zero at night and is multiplied by
-`cloud` (`1 - 0.5 cc` in the mixed layer, 1 above it). The forms are the ones of the C++ model:
-1 `A`, 2 `A exp(B/T)`, 4 and 5 the fall-off between a low and a high pressure limit, 6 the
-HO2 + HO2 reaction and 7 a third order `A (T/B)^C exp(D/T)`.
+Fill `K` with the rate constants [s-1, ppb-1 s-1] of the reactions of `scheme` at pressure
+`p` [Pa], temperature `T` [K] and specific humidity `q`. A photolysis rate is zero at night and
+is multiplied by `cloud`. The forms: 1 `A`, 2 `A exp(B/T)`, 4 and 5 a pressure fall-off,
+6 HO2 + HO2, 7 `A (T/B)^C exp(D/T)`.
 """
 function rate_constants!(K, scheme::ChemistryScheme, p, T, q, coszen, cloud)
-    q_ppb = q * 1e9 * MW_AIR / MW_H2O
+    q_ppb = h2o_ppb(q)
     conv = 6.023e8 * (p / 100) / (8.314e-2 * T)   # molecules cm-3 per ppb
     for (r, rx) in enumerate(REACTIONS)
         if !scheme.active[r]
@@ -52,8 +50,12 @@ function rate_constants!(K, scheme::ChemistryScheme, p, T, q, coszen, cloud)
     return K
 end
 
-# Four Gauss-Seidel passes of y = (y0 + dt P) / (1 + dt L), in the order of the species.
-function solve_chemistry!(y, y0, scheme::ChemistryScheme, K, dt)
+# Advance the mixing ratios `c` with H2O from `q` by `dt` into `y`: four Gauss-Seidel passes
+# of y = (y0 + dt P) / (1 + dt L), in the order of the species.
+function solve_chemistry!(y, y0, c, q, scheme::ChemistryScheme, K, dt)
+    copyto!(y0, c)
+    copyto!(y, c)
+    y0[I_H2O] = y[I_H2O] = h2o_ppb(q)
     for _ in 1:4
         for n in scheme.solved
             P = L = zero(eltype(y))
@@ -74,16 +76,13 @@ end
 """
     chemistry!(s::ModelState, dt)
 
-Advance the species by `dt` with the reactions of `s.chemistry.scheme`: first the mixed layer,
-then the free troposphere (`C + dC`), and set the jump `dC` from the two. H2O is set from `q`.
-The rates use the reference state (`P_ref`, `Tcbl_ref`, ...) with `sw_chem_constant`, else the
-state of the mixed layer. With `sw_photo_constant` the photolysis uses the sun at `tod_ref` when
-the sun is up. It also stores `phi`, the ratio of the NO2 photolysis to the NO + O3 reaction
-(the photostationary state), and `k_r05`, the NO2 photolysis rate.
+Advance the species by `dt` in the mixed layer and in the free troposphere (`C + dC`), and
+set `dC` from the two. H2O follows `q`. Also store `phi`, the photostationary state of NO,
+NO2 and O3, and `k_r05`, the NO2 photolysis rate. See `ModelInput` for the switches.
 """
 function chemistry!(s::ModelState, dt)
     x, c, ml, ch, sp = s.input, s.constants, s.mixed_layer, s.chemistry, s.species
-    sinlea = solar_elevation(x, s.t * x.dt + x.tstart * 3600)
+    sinlea = solar_elevation(x, utc_seconds(x, s.t))
     if x.sw_photo_constant && sinlea >= 0
         sinlea = solar_elevation(x, x.tod_ref * 3600)
     end
@@ -99,24 +98,16 @@ function chemistry!(s::ModelState, dt)
     rate_constants!(ch.Kcbl, scheme, p_cbl, T_cbl, q_cbl, sinlea, 1 - 0.5 * s.radiation.cc)
     rate_constants!(ch.Kft, scheme, p_ft, T_ft, q_ft, sinlea, one(sinlea))
 
-    # mixed layer
-    y, y0 = ch.y, ch.y0
-    copyto!(y0, sp.C)
-    copyto!(y, sp.C)
-    @. ch.fsc = sp.C + sp.dC
-    y0[I_H2O] = y[I_H2O] = q_cbl * 1e9 * MW_AIR / MW_H2O
-    solve_chemistry!(y, y0, scheme, ch.Kcbl, dt)
+    y = ch.y
+    @. ch.fsc = sp.C + sp.dC   # before C changes
+    solve_chemistry!(y, ch.y0, sp.C, q_cbl, scheme, ch.Kcbl, dt)
     copyto!(sp.C, y)
     K05, K21 = ch.Kcbl[I_R05], ch.Kcbl[I_R21]
     ch.phi = K05 > 1e-10 && y[I_NO2] > 1e-5 ? K21 * y[I_NO] * y[I_O3] / (K05 * y[I_NO2]) :
              zero(K05)
     ch.k_r05 = K05
 
-    # free troposphere
-    copyto!(y0, ch.fsc)
-    copyto!(y, ch.fsc)
-    y0[I_H2O] = y[I_H2O] = q_ft * 1e9 * MW_AIR / MW_H2O
-    solve_chemistry!(y, y0, scheme, ch.Kft, dt)
+    solve_chemistry!(y, ch.y0, ch.fsc, q_ft, scheme, ch.Kft, dt)
     @. sp.dC = y - sp.C
     return s
 end

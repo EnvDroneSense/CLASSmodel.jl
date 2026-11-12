@@ -41,9 +41,11 @@ const REACTIONS = [
         (2.9e-12, -160.0, 1.0, 1.0, 1.0, 1.0, 1.0)),
     Reaction(:r13, false, 2, [:HO2 => 1, :NO => 1], [:OH => 1.0, :NO2 => 1.0],
         (3.5e-12, 250.0, 1.0, 1.0, 1.0, 1.0, 1.0)),
-    Reaction(:r14, false, 2, [:CH3O2 => 1, :NO => 1], [:HO2 => 1.0, :NO2 => 1.0, :CH2O => 1.0],
+    Reaction(
+        :r14, false, 2, [:CH3O2 => 1, :NO => 1], [:HO2 => 1.0, :NO2 => 1.0, :CH2O => 1.0],
         (2.8e-12, 300.0, 1.0, 1.0, 1.0, 1.0, 1.0)),
-    Reaction(:r15, false, 1, [:RO2 => 1, :NO => 1], [:HO2 => 1.0, :NO2 => 1.0, :MVK => 1.0, :CH2O => 1.0],
+    Reaction(:r15, false, 1, [:RO2 => 1, :NO => 1],
+        [:HO2 => 1.0, :NO2 => 1.0, :MVK => 1.0, :CH2O => 1.0],
         (1e-11, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0)),
     Reaction(:r16, false, 2, [:OH => 1, :CH2O => 1], [:HO2 => 1.0, :CO => 1.0],
         (5.5e-12, 125.0, 1.0, 1.0, 1.0, 1.0, 1.0)),
@@ -97,7 +99,8 @@ struct ChemistryScheme{T}
 end
 
 function ChemistryScheme{T}() where {T}
-    return ChemistryScheme{T}(fill(false, NREACTIONS), [Term{T}[] for _ in 1:NSPECIES], Int[])
+    return ChemistryScheme{T}(
+        fill(false, NREACTIONS), [Term{T}[] for _ in 1:NSPECIES], Int[])
 end
 
 """
@@ -108,7 +111,6 @@ an input species is the reaction rate divided by that species, so that the solve
 it implicitly.
 """
 function chemistry_scheme(x::ModelInput{T}) where {T}
-    index(name) = findfirst(==(name), SPECIES)
     terms = [Term{T}[] for _ in 1:NSPECIES]
     function term(production, r, coef, factors)
         f = filter(>(0) ∘ last, factors)
@@ -117,14 +119,14 @@ function chemistry_scheme(x::ModelInput{T}) where {T}
     end
     for (r, rx) in enumerate(REACTIONS)
         x.sw_reactions[r] || continue
-        inputs = [(index(n), c) for (n, c) in rx.inputs]
+        inputs = [(species_index(n), c) for (n, c) in rx.inputs]
         for (k, (i, c)) in enumerate(inputs)
             factors = [(j, kk == k ? e - 1 : e) for (kk, (j, e)) in enumerate(inputs)]
             push!(terms[i], term(false, r, T(c), factors))
         end
         for (n, c) in rx.outputs
             coef = rx.name == :r19 && n == :OH ? T(x.stocoef) : T(c)
-            push!(terms[index(n)], term(true, r, coef, inputs))
+            push!(terms[species_index(n)], term(true, r, coef, inputs))
         end
     end
     solved = [i for i in 1:NSPECIES if !isempty(terms[i]) && !(SPECIES[i] in NOT_SOLVED)]

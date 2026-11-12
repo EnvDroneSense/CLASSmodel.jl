@@ -21,11 +21,16 @@ function psih(zeta)
     end
 end
 
+# Log-law profile from `z0` to `z` with the stability correction `psi` at Obukhov length L.
+profile(psi, z, z0, L) = log(z / z0) - psi(z / L) + psi(z0 / L)
+
 # Bulk Richardson number as a function of the Obukhov length `L`.
 function ribfun(L, zsl, z0m, z0h)
-    zsl / L * (log(zsl / z0h) - psih(zsl / L) + psih(z0h / L)) /
-    (log(zsl / z0m) - psim(zsl / L) + psim(z0m / L))^2
+    return zsl / L * profile(psih, zsl, z0h, L) / profile(psim, zsl, z0m, L)^2
 end
+
+# Wind speed with the convective velocity scale.
+effective_wind(s::ModelState) = sqrt(s.wind.u^2 + s.wind.v^2 + s.mixed_layer.wstar^2)
 
 """
     ribtol(Rib, zsl, z0m, z0h)
@@ -65,13 +70,12 @@ velocity, momentum fluxes and the 2 m diagnostics. The surface values use the dr
 coefficient and the surface resistance of the previous call.
 """
 function surface_layer!(s::ModelState)
-    x, c, ml, wind, sl, ls = s.input, s.constants, s.mixed_layer, s.wind, s.surface_layer,
-    s.land_surface
+    x, c, ml, wind, sl = s.input, s.constants, s.mixed_layer, s.wind, s.surface_layer
 
-    ueff = max(0.01, sqrt(wind.u^2 + wind.v^2 + ml.wstar^2))
+    ueff = max(0.01, effective_wind(s))
     sl.thetasurf = ml.theta + ml.wtheta / (sl.Cs * ueff)
     qsatsurf = qsat(sl.thetasurf, x.Ps)
-    cq = (1 + sl.Cs * ueff * ls.rs)^-1
+    cq = (1 + sl.Cs * ueff * s.land_surface.rs)^-1
     sl.qsurf = (1 - cq) * ml.q + cq * qsatsurf
     sl.thetavsurf = sl.thetasurf * (1 + VIRT * sl.qsurf)
 
@@ -79,8 +83,8 @@ function surface_layer!(s::ModelState)
     sl.Rib = min(c.g / ml.thetav * zsl * (ml.thetav - sl.thetavsurf) / ueff^2, 0.2)
     sl.L = ribtol(sl.Rib, zsl, x.z0m, x.z0h)
 
-    fm = log(zsl / x.z0m) - psim(zsl / sl.L) + psim(x.z0m / sl.L)
-    fh = log(zsl / x.z0h) - psih(zsl / sl.L) + psih(x.z0h / sl.L)
+    fm = profile(psim, zsl, x.z0m, sl.L)
+    fh = profile(psih, zsl, x.z0h, sl.L)
     sl.Cm = c.k^2 / fm^2
     sl.Cs = c.k^2 / fm / fh
 
@@ -89,8 +93,8 @@ function surface_layer!(s::ModelState)
     sl.vw = -sl.Cm * ueff * wind.v
 
     # 2 m diagnostics
-    fh2 = log(2 / x.z0h) - psih(2 / sl.L) + psih(x.z0h / sl.L)
-    fm2 = log(2 / x.z0m) - psim(2 / sl.L) + psim(x.z0m / sl.L)
+    fh2 = profile(psih, 2, x.z0h, sl.L)
+    fm2 = profile(psim, 2, x.z0m, sl.L)
     sl.T2m = sl.thetasurf - ml.wtheta / sl.ustar / c.k * fh2
     sl.q2m = sl.qsurf - ml.wq / sl.ustar / c.k * fh2
     sl.u2m = -sl.uw / sl.ustar / c.k * fm2

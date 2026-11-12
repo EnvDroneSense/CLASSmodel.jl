@@ -18,7 +18,7 @@ function compute!(s::ModelState)
     return s
 end
 
-"Advance the land surface and the mixed layer by one time step from their tendencies, then the chemistry."
+"Advance the land surface and the mixed layer by one time step, then the chemistry."
 function integrate!(s::ModelState)
     x = s.input
     x.sw_ls && integrate_land_surface!(s)
