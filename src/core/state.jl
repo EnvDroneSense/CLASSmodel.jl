@@ -147,6 +147,22 @@ Base.@kwdef mutable struct CumulusState{T <: Real}
     dztend::T = NaN         # tendency of dz_h [m s-1]
 end
 
+"State of the chemical species: mixing ratios, jumps and fluxes, one entry per species [ppb]."
+Base.@kwdef mutable struct SpeciesState{T <: Real}
+    C::Vector{T}            # mixing ratio in the mixed layer
+    dC::Vector{T}           # jump at h
+    wC::Vector{T}           # surface flux [ppb m s-1]
+    wCe::Vector{T}          # entrainment flux [ppb m s-1]
+    wCM::Vector{T}          # cloud core flux [ppb m s-1]
+    Ctend::Vector{T}        # tendency of C [ppb s-1]
+    dCtend::Vector{T}       # tendency of dC [ppb s-1]
+end
+
+function SpeciesState(x::ModelInput{T}) where {T}
+    return SpeciesState{T}(collect(x.C), collect(x.dC), collect(x.wC), zeros(T, NSPECIES),
+        zeros(T, NSPECIES), zeros(T, NSPECIES), zeros(T, NSPECIES))
+end
+
 """
     ModelState{T}
 
@@ -163,6 +179,7 @@ mutable struct ModelState{T <: Real}
     surface_layer::SurfaceLayerState{T}
     land_surface::LandSurfaceState{T}
     cumulus::CumulusState{T}
+    species::SpeciesState{T}
     t::Int
 end
 
@@ -185,6 +202,7 @@ function init_model(x::ModelInput{T};
         SurfaceLayerState{T}(; ustar = x.ustar, thetasurf = x.theta),
         LandSurfaceState{T}(; Ts = x.Ts, Tsoil = x.Tsoil, wg = x.wg, Wl = x.Wl),
         CumulusState{T}(; dz_h = x.dz_h),
+        SpeciesState(x),
         0
     )
 

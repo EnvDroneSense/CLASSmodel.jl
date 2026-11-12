@@ -5,15 +5,19 @@
 
 Set the surface fluxes of heat and moisture of the current time to a half sine, for the
 switches `sw_wtheta` and `sw_wq`. The land surface sets the fluxes itself, so `sw_ls`
-turns this off. The flux of a step is the one at the end of the step, as in the C++ model:
+turns this off. The species fluxes with `sw_wC = 1` follow the same sine, also with `sw_ls`. The flux of a step is the one at the end of the step, as in the C++ model:
 the input value at `sinperiod / 2`, negative after `sinperiod`, no clipping.
 """
 function prescribed_fluxes!(s::ModelState)
-    x, ml = s.input, s.mixed_layer
-    x.sw_ls && return s
+    x, ml, sp = s.input, s.mixed_layer, s.species
     sine = sin(pi / x.sinperiod * (s.t + 1) * x.dt)
-    x.sw_wtheta && (ml.wtheta = x.wtheta * sine)
-    x.sw_wq && (ml.wq = x.wq * sine)
+    if !x.sw_ls
+        x.sw_wtheta && (ml.wtheta = x.wtheta * sine)
+        x.sw_wq && (ml.wq = x.wq * sine)
+    end
+    for i in 1:NSPECIES
+        x.sw_wC[i] == 1 && (sp.wC[i] = x.wC[i] * sine)
+    end
     return s
 end
 
@@ -113,6 +117,7 @@ function mixed_layer!(s::ModelState)
     ml.wqe = -ml.we * ml.dq
     ml.wCO2e = -ml.we * ml.dCO2
     ml.wSe = -ml.we * ml.dS
+    @. s.species.wCe = -ml.we * s.species.dC
 
     # growth of the layer relative to the free troposphere, and of the layer itself
     wrel = ml.we + ml.wf - cu.M
@@ -127,6 +132,11 @@ function mixed_layer!(s::ModelState)
         ml.wCO2, ml.wCO2e, cu.wCO2M, x.advCO2, x.gammaCO2, ml.h, wrel_ft)
     ml.Stend, ml.dStend = scalar_tendencies(
         ml.wS, ml.wSe, cu.wSM, x.advS, x.gammaS, ml.h, wrel_ft)
+    sp = s.species
+    for i in 1:NSPECIES
+        sp.Ctend[i], sp.dCtend[i] = scalar_tendencies(
+            sp.wC[i], sp.wCe[i], sp.wCM[i], x.advC[i], x.gammaC[i], ml.h, wrel_ft)
+    end
 
     # the wind above the layer is geostrophic: u + du = ug
     if x.sw_wind
@@ -159,6 +169,8 @@ function integrate_mixed_layer!(s::ModelState)
     ml.dCO2 += dt * ml.dCO2tend
     ml.S += dt * ml.Stend
     ml.dS += dt * ml.dStend
+    @. s.species.C += dt * s.species.Ctend
+    @. s.species.dC += dt * s.species.dCtend
     cu.dz_h += dt * cu.dztend
     # the transition layer is at least 50 m thick
     cu.dz_h = max(cu.dz_h, 50)

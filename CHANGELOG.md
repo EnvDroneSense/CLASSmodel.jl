@@ -32,6 +32,9 @@ An entry outside "Changes to model results" leaves results unchanged.
 
 - Diurnal cycle of the prescribed surface fluxes: `sw_wtheta`, `sw_wq` and `sinperiod` make `wtheta`
   and `wq` follow a half sine (only without `sw_ls`).
+- 22 chemical species as passive scalars: inputs `C`, `dC`, `gammaC`, `advC`, `wC` and `sw_wC` (tuples with one
+  value for each species of `CLASSmodel.SPECIES`, in ppb) and 22 output columns, one for each species.
+  There are no reactions yet.
 - Passive scalar `S` with `dS`, `gammaS`, `advS` and `wS`, like CO2, and the outputs `S`, `dS`, `wS`,
   `wSe` and `wSM`.
 - `sw_curad`: with `sw_cu` and `sw_rad`, the cloud cover of the radiation is `2 ac` of the previous step.

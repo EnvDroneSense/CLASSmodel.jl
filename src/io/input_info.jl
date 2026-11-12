@@ -48,6 +48,12 @@ const INPUT_INFO = (
     gammaS = num("Scalar lapse rate", "S m-1", "γS", -0.1, 0.1),
     advS = num("Scalar advection", "S s-1", "advS", -0.01, 0.01),
     wS = num("Surface scalar flux", "S m s-1", "w'S'ₛ", -0.5, 0.5),
+    C = num("Initial species mixing ratio", "ppb", "C", 0, 1e9),
+    dC = num("Initial species jump", "ppb", "ΔC", -100, 100),
+    gammaC = num("Species lapse rate", "ppb m-1", "γC", -0.1, 0.1),
+    advC = num("Species advection", "ppb s-1", "advC", -0.01, 0.01),
+    wC = num("Surface species flux", "ppb m s-1", "w'C'ₛ", -10, 10),
+    sw_wC = choice("Species flux mode", "sw_wC", (0, 1)),
     u = num("Initial u wind", "m s-1", "u", -20, 20),
     du = num("Initial u wind jump", "m s-1", "Δu", -20, 20),
     gammau = num("u wind lapse rate", "s-1", "γu", -0.01, 0.01),
@@ -100,8 +106,9 @@ const INPUT_INFO = (
 
 Title, unit and symbol of the `ModelInput` field `name`, with the range `min` and `max` for a
 slider (not a validity rule; see [`validate`](@ref)). The unit is the model unit, `"-"` for a
-dimensionless field. A switch has `min = max = nothing`; a `Symbol` field has `options`
-instead of a range. The typical value is the default of `ModelInput()`.
+dimensionless field. A species field (`C`, `dC`, ...) holds one value for each species; the entry
+gives the range of one value. A switch has `min = max = nothing`; a `Symbol` field has `options`
+instead of a range (`sw_wC`: the modes 0 and 1). The typical value is the default of `ModelInput()`.
 """
 function input_info(name::Symbol)
     haskey(INPUT_INFO, name) || throw(ArgumentError("unknown input field :$name"))

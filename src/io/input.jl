@@ -1,5 +1,15 @@
 # Model input, physical constants and A-Gs plant parameters.
 
+# The 22 chemical species, in the order of the input tuples and of the output columns.
+const SPECIES = (:Inert, :O3, :O1D, :NO, :NO2, :CH4, :CH2O, :CH3O2, :MVK, :ISO, :RO2, :OH,
+    :HO2, :CO, :H2O, :Product, :O2, :N2, :HNO3, :H2O2, :NO3, :N2O5)
+const NSPECIES = length(SPECIES)
+# default mixing ratios [ppb] and surface fluxes [ppb m s-1]
+const SPECIES_ZERO = ntuple(_ -> 0.0, NSPECIES)
+const SPECIES_C0 = float.((0, 30, 0, 0.4, 0.6, 1724, 0, 0, 0, 0, 0, 0, 0, 100, 0, 0, 0.2e9, 0.8e9,
+    0, 0, 0, 0))
+const SPECIES_WC0 = float.((1, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+
 """
     PlantType
 
@@ -93,6 +103,7 @@ fluxes. The input is checked when it is constructed (see [`validate`](@ref)).
 | diurnal cycle | `sinperiod`, `sw_wtheta`, `sw_wq` |
 | heat, moisture, CO2 | `theta`, `dtheta`, `gammatheta`, `advtheta`, `wtheta`, `q`, `dq`, `gammaq`, `advq`, `wq`, `CO2`, `dCO2`, `gammaCO2`, `advCO2`, `wCO2` |
 | scalar | `S`, `dS`, `gammaS`, `advS`, `wS` |
+| chemical species | `C`, `dC`, `gammaC`, `advC`, `wC`, `sw_wC` (one value for each of the 22 species) |
 | wind | `u`, `du`, `gammau`, `advu`, `v`, `dv`, `gammav`, `advv` |
 | surface layer | `ustar`, `z0m`, `z0h` |
 | radiation | `lat`, `lon`, `doy`, `tstart`, `cc`, `Q`, `dFz` |
@@ -104,6 +115,8 @@ Notes:
 - `wCO2` is in mg CO2 m-2 s-1 (converted with `mair / (rho * mco2)`).
 - `c_beta = 0` is a linear water stress response.
 - The scalar `S` is passive and has no unit of its own: `[S]` is the unit you choose.
+- The 22 species of `CLASSmodel.SPECIES` are passive for now, like `S`, in ppb. `sw_wC` is the
+  flux mode of each: 0 constant `wC`, 1 `wC * sin(pi t / sinperiod)`.
 - `sw_curad` has an effect only with `sw_cu` and `sw_rad`; without it, radiation uses `cc`.
 - `sw_sea` has an effect only with `sw_ls`: fixed `Ts`, open-water evaporation, no soil.
 """
@@ -163,6 +176,14 @@ Base.@kwdef struct ModelInput{T <: Real}
     gammaS::T = 0               # free atmosphere scalar lapse rate [S m-1]
     advS::T = 0                 # advection of the scalar [S s-1]
     wS::T = 0                   # surface kinematic scalar flux [S m s-1]
+
+    # chemical species, in the order of SPECIES
+    C::NTuple{NSPECIES, T} = SPECIES_C0   # initial mixing ratio [ppb]
+    dC::NTuple{NSPECIES, T} = SPECIES_ZERO           # initial jump at h [ppb]
+    gammaC::NTuple{NSPECIES, T} = SPECIES_ZERO       # lapse rate above h [ppb m-1]
+    advC::NTuple{NSPECIES, T} = SPECIES_ZERO         # advection [ppb s-1]
+    wC::NTuple{NSPECIES, T} = SPECIES_WC0 # surface flux [ppb m s-1]
+    sw_wC::NTuple{NSPECIES, Int} = ntuple(_ -> 0, NSPECIES)            # flux mode: 0 constant, 1 sine
 
     # wind
     u::T = 6                    # initial mixed-layer u-wind speed [m s-1]
@@ -239,6 +260,7 @@ Throw an `ArgumentError` if `input` cannot be run. Called by the
 - positive time step, run time, `sinperiod`, `h`, `Ps`, `z0m`, `z0h`
 - `dtheta != 0` when the mixed layer or the cumulus scheme is on
 - `0 <= cc <= 1`, `0 <= cveg <= 1`, `0 <= c_beta <= 1`
+- `C >= 0` and `sw_wC` is 0 or 1 for every species
 - `ls_type` and `c3c4` have a known value
 - with `sw_ls` and not `sw_sea`: `LAI`, `Wmax`, `wg` > 0, `0 < w2 < wsat` and `wwilt < wfc <= wsat`
 - with `sw_cu`: `dz_h > 0`
@@ -253,10 +275,14 @@ function validate(x::ModelInput)
     end
 
     for name in fieldnames(typeof(x))
-        v = getfield(x, name)
-        v isa Real && !(v isa Bool) && !isfinite(v) &&
-            throw(ArgumentError("$name must be finite, got $v"))
+        field = getfield(x, name)
+        for v in (field isa Tuple ? field : (field,))
+            v isa Real && !(v isa Bool) && !isfinite(v) &&
+                throw(ArgumentError("$name must be finite, got $v"))
+        end
     end
+    all(>=(0), x.C) || throw(ArgumentError("C must be >= 0, got $(x.C)"))
+    all(in((0, 1)), x.sw_wC) || throw(ArgumentError("sw_wC must be 0 or 1, got $(x.sw_wC)"))
     positive(:runtime, x.runtime)
     positive(:dt, x.dt)
     positive(:sinperiod, x.sinperiod)

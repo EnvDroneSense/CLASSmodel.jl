@@ -92,12 +92,26 @@
         @test out.S ≈ out.CO2 && out.dS ≈ out.dCO2
     end
 
+    @testset "chemical species" begin
+        # passive for now: the flux of Inert (default 1 ppb m s-1) fills the layer
+        out = run(; wtheta = 0)
+        @test out.Inert[2] - out.Inert[1] ≈ 60 * 1 / out.h[1]
+        @test out.O3[end] == 30 && out.N2[end] == 0.8e9    # no flux, no jump, no change
+        # the sine mode of a species, and a species with a jump behaves like the scalar S
+        modes = ntuple(i -> i == 1 ? 1 : 0, 22)
+        sine = run(; sw_wC = modes, wC = ntuple(_ -> 0.1, 22))
+        @test sine.Inert[2] - sine.Inert[1] ≈ 60 * 0.1 * sin(pi * 60 / 43200) / sine.h[1]
+        jump = run(; S = 30, dS = 2, dC = ntuple(i -> i == 2 ? 2.0 : 0.0, 22))
+        @test jump.O3 ≈ jump.S
+    end
+
     @testset "every output is written" begin
         # a column the run loop forgets to write would stay at zero
         out = run_model(ModelInput(;
             runtime = 3600, sw_rad = true, sw_sl = true, sw_ls = true,
             sw_cu = true, sw_wind = true, ls_type = :ags, wCO2 = 0.1, Wl = 1e-4,
-            S = 1, dS = 1, wS = 0.01))
+            S = 1, dS = 1, wS = 0.01,
+            dC = ntuple(_ -> 1.0, 22), wC = ntuple(_ -> 1.0, 22)))
         for name in keys(out)
             name in (:wqM, :wCO2M, :wSM, :M, :ac, :cc) && continue    # zero without clouds
             @test any(!=(0), out[name])

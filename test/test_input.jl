@@ -14,7 +14,10 @@
         @test keys(CLASSmodel.INPUT_INFO) == fieldnames(ModelInput)   # every field, no extra
         for name in fieldnames(ModelInput)
             info, v = input_info(name), getfield(x, name)
-            if v isa Symbol
+            if v isa Tuple    # one value for each species
+                @test hasproperty(info, :options) ? all(in(info.options), v) :
+                      all(e -> info.min <= e <= info.max, v)
+            elseif v isa Symbol
                 @test v in info.options
             elseif v isa Bool
                 @test info.min === nothing && info.max === nothing
@@ -37,7 +40,8 @@
             (; dtheta = 0), (; sw_ml = false, sw_cu = true, dtheta = 0),   # division by dtheta
             (; sw_ls = true, Wmax = 0), (; sw_ls = true, wg = 0), (; sw_ls = true, w2 = 0),
             (; sw_ls = true, w2 = 0.472), (; sw_cu = true, dz_h = 0),
-            (; theta = NaN), (; fc = Inf), (; dq = NaN)
+            (; theta = NaN), (; fc = Inf), (; dq = NaN),
+            (; C = ntuple(_ -> -1.0, 22)), (; sw_wC = ntuple(_ -> 2, 22)), (; wC = ntuple(_ -> NaN, 22))
         )
         for kw in invalid
             @test_throws ArgumentError ModelInput(; kw...)

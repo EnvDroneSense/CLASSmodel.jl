@@ -3,7 +3,7 @@
 # Units follow the comments of `ModelInput` and the units section of the documentation
 # (`wCO2*` in mg CO2 m-2 s-1, `CO2` and `dCO2` in ppm). Dimensionless variables have "-".
 
-const VARIABLE_INFO = (
+const BASE_INFO = (
     t = (title = "Time", unit = "h", symbol = "t"),
     h = (title = "Boundary-layer height", unit = "m", symbol = "h"),
     theta = (title = "Mixed-layer potential temperature", unit = "K", symbol = "θ"),
@@ -78,6 +78,10 @@ const VARIABLE_INFO = (
     M = (title = "Cumulus mass flux", unit = "m s-1", symbol = "M"),
     dz = (title = "Transition layer thickness", unit = "m", symbol = "Δz")
 )
+
+const VARIABLE_INFO = merge(BASE_INFO,
+    NamedTuple(n => (title = "$n mixing ratio", unit = "ppb", symbol = String(n))
+    for n in SPECIES))
 
 """
     variable_info(name::Symbol) -> NamedTuple
