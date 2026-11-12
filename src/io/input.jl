@@ -90,6 +90,7 @@ fluxes. The input is checked when it is constructed (see [`validate`](@ref)).
 | time | `runtime`, `dt` |
 | switches | `sw_ml`, `sw_shearwe`, `sw_fixft`, `sw_wind`, `sw_sl`, `sw_rad`, `sw_ls`, `sw_cu` |
 | mixed layer | `h`, `Ps`, `divU`, `fc`, `beta` |
+| diurnal cycle | `sinperiod`, `sw_wtheta`, `sw_wq` |
 | heat, moisture, CO2 | `theta`, `dtheta`, `gammatheta`, `advtheta`, `wtheta`, `q`, `dq`, `gammaq`, `advq`, `wq`, `CO2`, `dCO2`, `gammaCO2`, `advCO2`, `wCO2` |
 | wind | `u`, `du`, `gammau`, `advu`, `v`, `dv`, `gammav`, `advv` |
 | surface layer | `ustar`, `z0m`, `z0h` |
@@ -116,6 +117,11 @@ Base.@kwdef struct ModelInput{T <: Real}
     sw_rad::Bool = false        # radiation
     sw_ls::Bool = false         # land surface
     sw_cu::Bool = false         # cumulus parameterization
+
+    # diurnal cycle of the prescribed surface fluxes (only without sw_ls)
+    sinperiod::T = 43200        # half period of the sine of the fluxes [s]
+    sw_wtheta::Bool = false     # heat flux follows wtheta * sin(pi t / sinperiod)
+    sw_wq::Bool = false         # moisture flux follows wq * sin(pi t / sinperiod)
 
     # mixed layer
     h::T = 200                  # initial ABL height [m]
@@ -217,7 +223,7 @@ Throw an `ArgumentError` if `input` cannot be run. Called by the
 [`ModelInput`](@ref) constructor. Checks:
 
 - every numeric field is finite
-- positive time step, run time, `h`, `Ps`, `z0m`, `z0h`
+- positive time step, run time, `sinperiod`, `h`, `Ps`, `z0m`, `z0h`
 - `dtheta != 0` when the mixed layer or the cumulus scheme is on
 - `0 <= cc <= 1`, `0 <= cveg <= 1`, `0 <= c_beta <= 1`
 - `ls_type` and `c3c4` have a known value
@@ -240,6 +246,7 @@ function validate(x::ModelInput)
     end
     positive(:runtime, x.runtime)
     positive(:dt, x.dt)
+    positive(:sinperiod, x.sinperiod)
     positive(:h, x.h)
     positive(:Ps, x.Ps)
     positive(:z0m, x.z0m)

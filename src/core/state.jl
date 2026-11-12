@@ -179,6 +179,7 @@ function init_model(x::ModelInput{T};
         0
     )
 
+    prescribed_fluxes!(s)
     statistics!(s)
     x.sw_rad && radiation!(s)
     if x.sw_sl

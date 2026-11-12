@@ -1,6 +1,23 @@
 # Mixed-layer model: diagnostics, tendencies and time integration.
 
 """
+    prescribed_fluxes!(s::ModelState)
+
+Set the surface fluxes of heat and moisture of the current time to a half sine, for the
+switches `sw_wtheta` and `sw_wq`. The land surface sets the fluxes itself, so `sw_ls`
+turns this off. The flux of a step is the one at the end of the step, as in the C++ model:
+the input value at `sinperiod / 2`, negative after `sinperiod`, no clipping.
+"""
+function prescribed_fluxes!(s::ModelState)
+    x, ml = s.input, s.mixed_layer
+    x.sw_ls && return s
+    sine = sin(pi / x.sinperiod * (s.t + 1) * x.dt)
+    x.sw_wtheta && (ml.wtheta = x.wtheta * sine)
+    x.sw_wq && (ml.wq = x.wq * sine)
+    return s
+end
+
+"""
     statistics!(s::ModelState)
 
 Virtual temperatures, values at the top of the mixed layer and the lifting

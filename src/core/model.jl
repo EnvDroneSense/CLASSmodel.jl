@@ -8,6 +8,7 @@ land surface, cumulus and mixed layer, as far as they are switched on.
 """
 function compute!(s::ModelState)
     x = s.input
+    prescribed_fluxes!(s)
     statistics!(s)
     x.sw_rad && radiation!(s)
     x.sw_sl && surface_layer!(s)

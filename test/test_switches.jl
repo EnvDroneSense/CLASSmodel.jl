@@ -28,6 +28,19 @@
         @test run(; sw_fixft = true).dtheta == run().dtheta   # no subsidence, no difference
     end
 
+    @testset "diurnal cycle of the fluxes" begin
+        # half sine, taken at the end of each step: the input value at sinperiod / 2, negative after
+        x = (; runtime = 2500, sinperiod = 1200, sw_wtheta = true, sw_wq = true)
+        out = run(; x...)
+        @test out.wtheta[1] ≈ 0.1 * sin(pi * 60 / 1200)
+        @test out.wtheta[10] ≈ 0.1 && out.wq[10] ≈ 1e-4        # end of the step at 600 s
+        @test out.wtheta[31] < 0
+        @test run(; x..., sw_wq = false).wq == fill(1e-4, 41)  # each switch acts alone
+        # the land surface sets the fluxes itself
+        ls = (; sw_sl = true, sw_ls = true)
+        @test isequal(run(; ls..., x...).wtheta, run(; ls..., runtime = x.runtime).wtheta)
+    end
+
     @testset "A-Gs C4 and water stress" begin
         ags(; kw...) = run(;
             sw_rad = true, sw_sl = true, sw_ls = true, ls_type = :ags, kw...)

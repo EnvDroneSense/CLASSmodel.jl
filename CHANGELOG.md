@@ -30,6 +30,8 @@ An entry outside "Changes to model results" leaves results unchanged.
 
 ### Features
 
+- Diurnal cycle of the prescribed surface fluxes: `sw_wtheta`, `sw_wq` and `sinperiod` make `wtheta`
+  and `wq` follow a half sine (only without `sw_ls`).
 - `run_model(input; progress, progress_every)`: a callback `progress(i, n, out)` reports the
   progress and stops the run when it returns `false`.
 - `input_info(name)`: title, unit, symbol and slider range of each `ModelInput` field.
