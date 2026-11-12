@@ -83,13 +83,23 @@
         @test_throws ArgumentError ModelInput(; x..., w2 = 0.6)
     end
 
+    @testset "passive scalar" begin
+        # the surface flux fills the layer: dS/dt = wS / h at the first step
+        out = run(; wS = 0.01, dS = 0, wtheta = 0)
+        @test out.S[2] - out.S[1] ≈ 60 * 0.01 / out.h[1]
+        # a jump with entrainment mixes into the layer, like CO2
+        out = run(; S = 1, dS = 2, dCO2 = 2, CO2 = 1)
+        @test out.S ≈ out.CO2 && out.dS ≈ out.dCO2
+    end
+
     @testset "every output is written" begin
         # a column the run loop forgets to write would stay at zero
         out = run_model(ModelInput(;
             runtime = 3600, sw_rad = true, sw_sl = true, sw_ls = true,
-            sw_cu = true, sw_wind = true, ls_type = :ags, wCO2 = 0.1, Wl = 1e-4))
+            sw_cu = true, sw_wind = true, ls_type = :ags, wCO2 = 0.1, Wl = 1e-4,
+            S = 1, dS = 1, wS = 0.01))
         for name in keys(out)
-            name in (:wqM, :wCO2M, :M, :ac, :cc) && continue    # zero without clouds
+            name in (:wqM, :wCO2M, :wSM, :M, :ac, :cc) && continue    # zero without clouds
             @test any(!=(0), out[name])
         end
     end

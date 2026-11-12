@@ -4,7 +4,7 @@
 const OUTPUT_NAMES = (
     :t, :h, :theta, :thetav, :dtheta, :dthetav, :wtheta, :wthetav, :wthetae, :wthetave, :q,
     :dq, :wq, :wqe, :wqM, :qsat, :e, :esat, :CO2, :dCO2, :wCO2, :wCO2A, :wCO2R, :wCO2e,
-    :wCO2M, :u, :du, :uw, :v, :dv, :vw, :T2m, :q2m, :u2m, :v2m, :e2m, :esat2m, :thetasurf,
+    :wCO2M, :S, :dS, :wS, :wSe, :wSM, :u, :du, :uw, :v, :dv, :vw, :T2m, :q2m, :u2m, :v2m, :e2m, :esat2m, :thetasurf,
     :thetavsurf, :qsurf, :ustar, :z0m, :z0h, :Cm, :Cs, :L, :Rib, :Swin, :Swout, :Lwin,
     :Lwout, :Q, :cc, :ra, :rs, :H, :LE, :LEliq, :LEveg, :LEsoil, :LEpot, :LEref, :G, :zlcl,
     :RH_h, :ac, :M, :dz
@@ -79,6 +79,12 @@ function store!(out::ModelOutput, s::ModelState)
     out.wCO2R[i] = ml.wCO2R / f
     out.wCO2A[i] = ml.wCO2A / f
     out.wCO2M[i] = cu.wCO2M / f
+
+    out.S[i] = ml.S
+    out.dS[i] = ml.dS
+    out.wS[i] = ml.wS
+    out.wSe[i] = ml.wSe
+    out.wSM[i] = cu.wSM
 
     out.u[i] = w.u
     out.du[i] = w.du

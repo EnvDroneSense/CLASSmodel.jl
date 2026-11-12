@@ -68,6 +68,13 @@ function prescribed_stress!(s::ModelState)
     return nothing
 end
 
+# Tendencies of a mixed-layer scalar and of its jump at h: surface, entrainment and cloud
+# flux, advection, lapse rate `gamma` above and the growth of the layer relative to it.
+function scalar_tendencies(flux, flux_e, flux_M, adv, gamma, h, wrel_ft)
+    tend = (flux - flux_e - flux_M) / h + adv
+    return tend, gamma * wrel_ft - tend
+end
+
 """
     mixed_layer!(s::ModelState)
 
@@ -105,18 +112,21 @@ function mixed_layer!(s::ModelState)
     ml.wthetae = -ml.we * ml.dtheta
     ml.wqe = -ml.we * ml.dq
     ml.wCO2e = -ml.we * ml.dCO2
+    ml.wSe = -ml.we * ml.dS
 
     # growth of the layer relative to the free troposphere, and of the layer itself
     wrel = ml.we + ml.wf - cu.M
     ml.htend = wrel + ml.ws
 
+    wrel_ft = wrel + ws_ft
     ml.thetatend = (ml.wtheta - ml.wthetae) / ml.h + x.advtheta
-    ml.qtend = (ml.wq - ml.wqe - cu.wqM) / ml.h + x.advq
-    ml.CO2tend = (ml.wCO2 - ml.wCO2e - cu.wCO2M) / ml.h + x.advCO2
-
-    ml.dthetatend = x.gammatheta * (wrel + ws_ft) - ml.thetatend
-    ml.dqtend = x.gammaq * (wrel + ws_ft) - ml.qtend
-    ml.dCO2tend = x.gammaCO2 * (wrel + ws_ft) - ml.CO2tend
+    ml.dthetatend = x.gammatheta * wrel_ft - ml.thetatend
+    ml.qtend, ml.dqtend = scalar_tendencies(
+        ml.wq, ml.wqe, cu.wqM, x.advq, x.gammaq, ml.h, wrel_ft)
+    ml.CO2tend, ml.dCO2tend = scalar_tendencies(
+        ml.wCO2, ml.wCO2e, cu.wCO2M, x.advCO2, x.gammaCO2, ml.h, wrel_ft)
+    ml.Stend, ml.dStend = scalar_tendencies(
+        ml.wS, ml.wSe, cu.wSM, x.advS, x.gammaS, ml.h, wrel_ft)
 
     # the wind above the layer is geostrophic: u + du = ug
     if x.sw_wind
@@ -147,6 +157,8 @@ function integrate_mixed_layer!(s::ModelState)
     ml.dq += dt * ml.dqtend
     ml.CO2 += dt * ml.CO2tend
     ml.dCO2 += dt * ml.dCO2tend
+    ml.S += dt * ml.Stend
+    ml.dS += dt * ml.dStend
     cu.dz_h += dt * cu.dztend
     # the transition layer is at least 50 m thick
     cu.dz_h = max(cu.dz_h, 50)

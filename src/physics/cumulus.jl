@@ -6,8 +6,8 @@ nan_sqrt(x) = x < 0 ? oftype(x, NaN) : sqrt(x)
 """
     cumulus!(s::ModelState)
 
-Cloud core fraction `ac`, mass flux `M` and the moisture and CO2 fluxes `wqM`, `wCO2M`
-carried by the clouds, from the humidity and CO2 variance at the top of the mixed layer.
+Cloud core fraction `ac`, mass flux `M` and the moisture, CO2 and scalar fluxes `wqM`,
+`wCO2M`, `wSM` carried by the clouds, from the humidity, CO2 and scalar variance at the top of the mixed layer.
 Needs the entrainment fluxes of a previous `mixed_layer!` call. With `sw_curad` it also sets
 the cloud cover of the radiation to `2 ac`.
 """
@@ -18,9 +18,11 @@ function cumulus!(s::ModelState)
     if ml.wthetav > 0
         q2_h = -(ml.wqe + cu.wqM) * ml.dq * ml.h / (cu.dz_h * ml.wstar)
         CO22_h = -(ml.wCO2e + cu.wCO2M) * ml.dCO2 * ml.h / (cu.dz_h * ml.wstar)
+        S2_h = -(ml.wSe + cu.wSM) * ml.dS * ml.h / (cu.dz_h * ml.wstar)
     else
         q2_h = zero(ml.q)
         CO22_h = zero(ml.q)
+        S2_h = zero(ml.q)
     end
 
     # cloud core fraction (zero when not positive or undefined), mass flux and moisture flux
@@ -32,5 +34,6 @@ function cumulus!(s::ModelState)
 
     # CO2 mass flux only if the jump at the top is negative
     cu.wCO2M = ml.dCO2 < 0 ? cu.M * nan_sqrt(CO22_h) : zero(ml.q)
+    cu.wSM = ml.dS < 0 ? cu.M * nan_sqrt(S2_h) : zero(ml.q)
     return nothing
 end

@@ -92,6 +92,7 @@ fluxes. The input is checked when it is constructed (see [`validate`](@ref)).
 | mixed layer | `h`, `Ps`, `divU`, `fc`, `beta` |
 | diurnal cycle | `sinperiod`, `sw_wtheta`, `sw_wq` |
 | heat, moisture, CO2 | `theta`, `dtheta`, `gammatheta`, `advtheta`, `wtheta`, `q`, `dq`, `gammaq`, `advq`, `wq`, `CO2`, `dCO2`, `gammaCO2`, `advCO2`, `wCO2` |
+| scalar | `S`, `dS`, `gammaS`, `advS`, `wS` |
 | wind | `u`, `du`, `gammau`, `advu`, `v`, `dv`, `gammav`, `advv` |
 | surface layer | `ustar`, `z0m`, `z0h` |
 | radiation | `lat`, `lon`, `doy`, `tstart`, `cc`, `Q`, `dFz` |
@@ -102,6 +103,7 @@ Notes:
 - `ls_type` is `:js` (Jarvis-Stewart) or `:ags` (A-Gs); `c3c4` is `:c3` or `:c4`.
 - `wCO2` is in mg CO2 m-2 s-1 (converted with `mair / (rho * mco2)`).
 - `c_beta = 0` is a linear water stress response.
+- The scalar `S` is passive and has no unit of its own: `[S]` is the unit you choose.
 - `sw_curad` has an effect only with `sw_cu` and `sw_rad`; without it, radiation uses `cc`.
 - `sw_sea` has an effect only with `sw_ls`: fixed `Ts`, open-water evaporation, no soil.
 """
@@ -154,6 +156,13 @@ Base.@kwdef struct ModelInput{T <: Real}
     gammaCO2::T = 0             # free atmosphere CO2 lapse rate [ppm m-1]
     advCO2::T = 0               # advection of CO2 [ppm s-1]
     wCO2::T = 0                 # surface kinematic CO2 flux [mg CO2 m-2 s-1, see notes]
+
+    # passive scalar, in any unit [S]
+    S::T = 0                    # initial mixed-layer scalar [S]
+    dS::T = 0                   # initial scalar jump at h [S]
+    gammaS::T = 0               # free atmosphere scalar lapse rate [S m-1]
+    advS::T = 0                 # advection of the scalar [S s-1]
+    wS::T = 0                   # surface kinematic scalar flux [S m s-1]
 
     # wind
     u::T = 6                    # initial mixed-layer u-wind speed [m s-1]

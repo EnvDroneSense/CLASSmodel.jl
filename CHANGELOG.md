@@ -32,6 +32,8 @@ An entry outside "Changes to model results" leaves results unchanged.
 
 - Diurnal cycle of the prescribed surface fluxes: `sw_wtheta`, `sw_wq` and `sinperiod` make `wtheta`
   and `wq` follow a half sine (only without `sw_ls`).
+- Passive scalar `S` with `dS`, `gammaS`, `advS` and `wS`, like CO2, and the outputs `S`, `dS`, `wS`,
+  `wSe` and `wSM`.
 - `sw_curad`: with `sw_cu` and `sw_rad`, the cloud cover of the radiation is `2 ac` of the previous step.
   New output column `cc`.
 - `sw_sea`: with `sw_ls`, the land surface becomes open water at the fixed `Ts` (no soil, no
