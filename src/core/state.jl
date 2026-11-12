@@ -48,11 +48,6 @@ Base.@kwdef mutable struct MixedLayerState{T <: Real}
     wCO2R::T = 0.0          # surface respiration CO2 flux [ppm m s-1]
     wCO2e::T = NaN          # entrainment CO2 flux [ppm m s-1]
 
-    S::T = NaN              # passive scalar [S]
-    dS::T = NaN             # scalar jump at h [S]
-    wS::T = NaN             # surface scalar flux [S m s-1]
-    wSe::T = NaN            # entrainment scalar flux [S m s-1]
-
     P_h::T = NaN            # pressure at the top [Pa]
     T_h::T = NaN            # absolute temperature at the top [K]
     RH_h::T = NaN           # relative humidity at the top [-]
@@ -65,8 +60,6 @@ Base.@kwdef mutable struct MixedLayerState{T <: Real}
     dqtend::T = NaN         # tendency of dq [kg kg-1 s-1]
     CO2tend::T = NaN        # tendency of CO2 [ppm s-1]
     dCO2tend::T = NaN       # tendency of dCO2 [ppm s-1]
-    Stend::T = NaN          # tendency of S [S s-1]
-    dStend::T = NaN         # tendency of dS [S s-1]
 end
 
 "State of the mixed-layer wind: components and jumps at h."
@@ -140,7 +133,6 @@ Base.@kwdef mutable struct CumulusState{T <: Real}
     M::T = 0.0              # cloud core mass flux [m s-1]
     wqM::T = 0.0            # cloud core moisture flux [kg kg-1 m s-1]
     wCO2M::T = 0.0          # cloud core CO2 flux [ppm m s-1]
-    wSM::T = 0.0            # cloud core scalar flux [S m s-1]
     dz_h::T = NaN           # transition layer thickness [m]
     dztend::T = NaN         # tendency of dz_h [m s-1]
 end
@@ -213,7 +205,7 @@ function init_model(x::ModelInput{T};
         MixedLayerState{T}(;
             h = x.h, theta = x.theta, dtheta = x.dtheta, wtheta = x.wtheta,
             q = x.q, dq = x.dq, wq = x.wq, CO2 = x.CO2, dCO2 = x.dCO2,
-            wCO2 = x.wCO2 * mg_to_ppm(constants), S = x.S, dS = x.dS, wS = x.wS),
+            wCO2 = x.wCO2 * mg_to_ppm(constants)),
         WindState{T}(; u = x.u, du = x.du, v = x.v, dv = x.dv),
         RadiationState{T}(; Q = x.Q, cc = x.cc),
         SurfaceLayerState{T}(; ustar = x.ustar, thetasurf = x.theta),
@@ -224,20 +216,7 @@ function init_model(x::ModelInput{T};
         0
     )
 
-    prescribed_fluxes!(s)
-    statistics!(s)
-    x.sw_rad && radiation!(s)
-    if x.sw_sl
-        for _ in 1:10
-            surface_layer!(s)
-        end
-    end
-    x.sw_ls && land_surface!(s)
-    if x.sw_cu
-        mixed_layer!(s)
-        cumulus!(s)
-    end
-    x.sw_ml && mixed_layer!(s)
+    compute!(s; first = true)
     x.sw_chem && chemistry!(s, x.dt / 1000)   # spin up with a very small step
     return s
 end

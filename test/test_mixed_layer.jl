@@ -29,4 +29,49 @@ using CLASSmodel: qsat
     x = ModelInput()
     T_lcl = out.theta[1] - 9.81 / 1005 * out.zlcl[1]
     @test out.q[1] / qsat(T_lcl, 101300 - 1.2 * 9.81 * out.zlcl[1])≈1 atol=2e-4
+    # a layer that stays far below saturation does not converge, and says so
+    x = ModelInput(; runtime = 60, h = 3000, q = 0.0001, theta = 300)
+    @test_logs (:warn, "LCL calculation not converged") match_mode=:any run_model(x)
+end
+
+@testset "mixed-layer switches" begin
+    run(; kw...) = run_model(ModelInput(; runtime = 3600, kw...))
+
+    @testset "sw_wind" begin
+        # the wind above the layer is geostrophic: u + du and v + dv stay constant
+        x = (; sw_wind = true, ustar = 0)
+        out = run(; x...)
+        @test all(≈(10), out.u .+ out.du) && all(≈(0; atol = 1e-12), out.v .+ out.dv)
+        @test out.v[end] > out.v[1]                    # the Coriolis force turns the wind
+        @test run(; x..., advu = 1e-5).u[end] > out.u[end]
+        # switched off: the wind does not change
+        @test all(==(6), run().u)
+    end
+
+    @testset "sw_shearwe" begin
+        # shear adds to the entrainment; without friction velocity it does not
+        @test run(; sw_shearwe = true).h[end] > run().h[end]
+        @test run(; sw_shearwe = true, ustar = 0).h == run(; ustar = 0).h
+    end
+
+    @testset "sw_fixft" begin
+        # with subsidence the fixed free troposphere changes the jump tendency by gamma * ws
+        x = (; divU = 1e-5, gammatheta = 0.006)
+        out, ref = run(; x..., sw_fixft = true), run(; x...)
+        @test out.dtheta[2] - ref.dtheta[2] ≈ x.gammatheta * (-x.divU * 200) * 60
+        @test run(; sw_fixft = true).dtheta == run().dtheta   # no subsidence, no difference
+    end
+
+    @testset "diurnal cycle of the fluxes" begin
+        # half sine, taken at the end of each step: the input value at sinperiod / 2, negative after
+        x = (; runtime = 2500, sinperiod = 1200, sw_wtheta = true, sw_wq = true)
+        out = run(; x...)
+        @test out.wtheta[1] ≈ 0.1 * sin(pi * 60 / 1200)
+        @test out.wtheta[10] ≈ 0.1 && out.wq[10] ≈ 1e-4        # end of the step at 600 s
+        @test out.wtheta[31] < 0
+        @test run(; x..., sw_wq = false).wq == fill(1e-4, 41)  # each switch acts alone
+        # the land surface sets the fluxes itself
+        ls = (; sw_sl = true, sw_ls = true)
+        @test isequal(run(; ls..., x...).wtheta, run(; ls..., runtime = x.runtime).wtheta)
+    end
 end

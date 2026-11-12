@@ -106,7 +106,6 @@ fluxes. The input is checked when it is constructed (see [`validate`](@ref)).
 | mixed layer | `h`, `Ps`, `divU`, `fc`, `beta` |
 | diurnal cycle | `sinperiod`, `sw_wtheta`, `sw_wq` |
 | heat, moisture, CO2 | `theta`, `dtheta`, `gammatheta`, `advtheta`, `wtheta`, `q`, `dq`, `gammaq`, `advq`, `wq`, `CO2`, `dCO2`, `gammaCO2`, `advCO2`, `wCO2` |
-| scalar | `S`, `dS`, `gammaS`, `advS`, `wS` |
 | chemical species | `C`, `dC`, `gammaC`, `advC`, `wC`, `sw_wC` (one value for each of the 22 species) |
 | chemistry | `sw_chem`, `sw_chem_constant`, `sw_photo_constant`, `sw_reactions` (one switch for each of the 28 reactions), `tod_ref`, `Tcbl_ref`, `Tft_ref`, `qcbl_ref`, `qft_ref`, `P_ref`, `stocoef` |
 | wind | `u`, `du`, `gammau`, `advu`, `v`, `dv`, `gammav`, `advv` |
@@ -119,8 +118,8 @@ Notes:
 - `ls_type` is `:js` (Jarvis-Stewart) or `:ags` (A-Gs); `c3c4` is `:c3` or `:c4`.
 - `wCO2` is in mg CO2 m-2 s-1 (converted with `mair / (rho * mco2)`).
 - `c_beta = 0` is a linear water stress response.
-- The scalar `S` is passive and has no unit of its own: `[S]` is the unit you choose.
-- The 22 species of `CLASSmodel.SPECIES` are in ppb. Without `sw_chem` they are passive, like `S`.
+- The 22 species of `CLASSmodel.SPECIES` are in ppb. `Inert` takes part in no reaction: it is the
+  passive scalar. Without `sw_chem` all species are passive.
   `sw_wC` is the flux mode of each: 0 constant `wC`, 1 `wC * sin(pi t / sinperiod)`,
   2 `wC` times the solar elevation divided by its noon value (zero at night).
 - `sw_chem` runs the reactions of `sw_reactions` (see `chemistry!`). `sw_chem_constant`
@@ -181,13 +180,6 @@ Base.@kwdef struct ModelInput{T <: Real}
     gammaCO2::T = 0             # free atmosphere CO2 lapse rate [ppm m-1]
     advCO2::T = 0               # advection of CO2 [ppm s-1]
     wCO2::T = 0                 # surface kinematic CO2 flux [mg CO2 m-2 s-1, see notes]
-
-    # passive scalar, in any unit [S]
-    S::T = 0                    # initial mixed-layer scalar [S]
-    dS::T = 0                   # initial scalar jump at h [S]
-    gammaS::T = 0               # free atmosphere scalar lapse rate [S m-1]
-    advS::T = 0                 # advection of the scalar [S s-1]
-    wS::T = 0                   # surface kinematic scalar flux [S m s-1]
 
     # chemical species, in the order of SPECIES
     C::NTuple{NSPECIES, T} = SPECIES_C0                       # initial mixing ratio [ppb]

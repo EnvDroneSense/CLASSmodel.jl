@@ -16,16 +16,19 @@ using CLASSmodel: E1
     ags(; kw...) = run_model(ModelInput(;
         runtime = 600, sw_rad = true, sw_sl = true, sw_ls = true, ls_type = :ags, kw...))
 
-    # by day the canopy takes up CO2 and the soil releases it
-    out = ags()
+    # by day the canopy takes up CO2 and the soil releases it, for both plant types
+    out, c4 = ags(), ags(c3c4 = :c4)
     @test all(out.wCO2A .< 0) && all(out.wCO2R .> 0)
     @test out.wCO2 ≈ out.wCO2A + out.wCO2R
-    @test out.wCO2A ≈ ags(c3c4 = :c3).wCO2A && out.wCO2A != ags(c3c4 = :c4).wCO2A
+    @test all(c4.wCO2A .< 0) && c4.wCO2A != out.wCO2A
 
     # a vapour pressure deficit above f0/ad has no valid ci
-    @test_throws r"f0/ad" ags(c3c4 = :c4, q = 0.002, theta = 310, Ts = 310, Tsoil = 310, T2 = 310)
+    @test_throws r"f0/ad" ags(
+        c3c4 = :c4, q = 0.002, theta = 310, Ts = 310, Tsoil = 310, T2 = 310)
 
-    # drier soil, stronger water stress, higher surface resistance
-    @test ags(w2 = 0.2).rs[1] > ags(w2 = 0.3).rs[1]
-    @test ags(w2 = 0.2, c_beta = 0.5).rs[1] != ags(w2 = 0.2).rs[1]
+    # drier soil, stronger water stress, higher surface resistance; the stronger the
+    # curvature of the stress, the lower the resistance
+    rs(; kw...) = ags(; kw...).rs[1]
+    @test rs(w2 = 0.2) > rs(w2 = 0.3)
+    @test rs(w2 = 0.2, c_beta = 0) > rs(w2 = 0.2, c_beta = 0.5) > rs(w2 = 0.2, c_beta = 1)
 end

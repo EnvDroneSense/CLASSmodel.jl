@@ -16,8 +16,8 @@ end
 """
     cumulus!(s::ModelState)
 
-Cloud core fraction `ac`, mass flux `M` and the cloud fluxes of moisture, CO2, the scalar
-and the species, from their variance at h. Needs the entrainment fluxes of a previous
+Cloud core fraction `ac`, mass flux `M` and the cloud fluxes of moisture, CO2 and the
+species, from their variance at h. Needs the entrainment fluxes of a previous
 `mixed_layer!` call. With `sw_curad` it sets the cloud cover of the radiation to `2 ac`.
 """
 function cumulus!(s::ModelState)
@@ -32,7 +32,6 @@ function cumulus!(s::ModelState)
     cu.wqM = cu.M * sigma_q
 
     cu.wCO2M = cloud_flux(ml, cu, ml.wCO2e, cu.wCO2M, ml.dCO2)
-    cu.wSM = cloud_flux(ml, cu, ml.wSe, cu.wSM, ml.dS)
     for i in 1:NSPECIES
         sp.wCM[i] = cloud_flux(ml, cu, sp.wCe[i], sp.wCM[i], sp.dC[i])
     end

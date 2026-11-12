@@ -119,7 +119,6 @@ function mixed_layer!(s::ModelState)
     ml.wthetae = -ml.we * ml.dtheta
     ml.wqe = -ml.we * ml.dq
     ml.wCO2e = -ml.we * ml.dCO2
-    ml.wSe = -ml.we * ml.dS
 
     # growth of the layer relative to the free troposphere, and of the layer itself
     wrel = ml.we + ml.wf - cu.M
@@ -132,8 +131,6 @@ function mixed_layer!(s::ModelState)
         ml.wq, ml.wqe, cu.wqM, x.advq, x.gammaq, ml.h, wrel_ft)
     ml.CO2tend, ml.dCO2tend = scalar_tendencies(
         ml.wCO2, ml.wCO2e, cu.wCO2M, x.advCO2, x.gammaCO2, ml.h, wrel_ft)
-    ml.Stend, ml.dStend = scalar_tendencies(
-        ml.wS, ml.wSe, cu.wSM, x.advS, x.gammaS, ml.h, wrel_ft)
     sp = s.species
     for i in 1:NSPECIES
         sp.wCe[i] = -ml.we * sp.dC[i]
@@ -170,8 +167,6 @@ function integrate_mixed_layer!(s::ModelState)
     ml.dq += dt * ml.dqtend
     ml.CO2 += dt * ml.CO2tend
     ml.dCO2 += dt * ml.dCO2tend
-    ml.S += dt * ml.Stend
-    ml.dS += dt * ml.dStend
     @. s.species.C += dt * s.species.Ctend
     @. s.species.dC += dt * s.species.dCtend
     cu.dz_h += dt * cu.dztend

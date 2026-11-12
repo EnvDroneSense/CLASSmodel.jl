@@ -10,6 +10,6 @@ using Test
     include("test_land_surface.jl")
     include("test_ags.jl")
     include("test_cumulus.jl")
-    include("test_switches.jl")
+    include("test_chemistry.jl")
     include("test_quality.jl")
 end

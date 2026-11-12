@@ -25,14 +25,11 @@ end
 """
     land_surface!(s::ModelState)
 
-Aerodynamic and surface resistances, the skin temperature `Ts` from the linearised energy
-balance, the surface fluxes (written to the mixed layer as `wtheta` and `wq`) and the
-tendencies of the soil temperature, soil moisture and wet-leaf water layer. With `sw_sea`
-the fluxes are those of open water at the fixed `Ts`; `G` and `LEref` are `NaN`.
+Aerodynamic resistance and the surface fluxes of the land or, with `sw_sea`, of open water.
+The fluxes go to the mixed layer as `wtheta` and `wq`.
 """
 function land_surface!(s::ModelState)
     x, c, ml, sl, ls = s.input, s.constants, s.mixed_layer, s.surface_layer, s.land_surface
-    rho, cp, Lv = c.rho, c.cp, c.Lv
 
     ueff = effective_wind(s)
     sl.ra = x.sw_sl ? (sl.Cs * ueff)^-1 : ueff / max(1e-3, sl.ustar)^2
@@ -40,20 +37,34 @@ function land_surface!(s::ModelState)
     # thermodynamic variables at the mixed-layer temperature
     ml.esat = esat(ml.theta)
     ml.qsat = qsat(ml.theta, x.Ps)
-    dqsatdT = ε * desat(ml.theta) / x.Ps
     ml.e = ml.q * x.Ps / ε
 
-    if x.sw_sea   # open water at the fixed Ts: no resistances, no soil
-        ls.rs = 0
-        ls.LEveg = ls.LEsoil = 0
-        ls.LEliq = rho * Lv / sl.ra * (qsat(ls.Ts, x.Ps) - ml.q)
-        ls.LE = ls.LEpot = ls.LEliq
-        ls.H = rho * cp / sl.ra * (ls.Ts - ml.theta)
-        ls.G = ls.LEref = NaN
-        ml.wtheta = ls.H / (rho * cp)
-        ml.wq = ls.LE / (rho * Lv)
-        return nothing
-    end
+    x.sw_sea ? open_water!(s) : land!(s)
+
+    # kinematic surface fluxes for the mixed layer
+    ml.wtheta = ls.H / (c.rho * c.cp)
+    ml.wq = ls.LE / (c.rho * c.Lv)
+    return nothing
+end
+
+# Open water at the fixed `Ts`: no resistances and no soil, so `G` and `LEref` are `NaN`.
+function open_water!(s::ModelState)
+    x, c, ml, sl, ls = s.input, s.constants, s.mixed_layer, s.surface_layer, s.land_surface
+    ls.rs = 0
+    ls.LEveg = ls.LEsoil = 0
+    ls.LEliq = c.rho * c.Lv / sl.ra * (qsat(ls.Ts, x.Ps) - ml.q)
+    ls.LE = ls.LEpot = ls.LEliq
+    ls.H = c.rho * c.cp / sl.ra * (ls.Ts - ml.theta)
+    ls.G = ls.LEref = NaN
+    return nothing
+end
+
+# Land: surface resistance, the skin temperature `Ts` from the linearised energy balance, the
+# fluxes, and the tendencies of the soil temperature, soil moisture and wet-leaf water layer.
+function land!(s::ModelState)
+    x, c, ml, sl, ls = s.input, s.constants, s.mixed_layer, s.surface_layer, s.land_surface
+    rho, cp, Lv = c.rho, c.cp, c.Lv
+    dqsatdT = ε * desat(ml.theta) / x.Ps
 
     x.ls_type == :js ? jarvis_stewart!(s) : ags!(s)
 
@@ -98,10 +109,6 @@ function land_surface!(s::ModelState)
     C2 = x.C2ref * (x.w2 / (x.wsat - x.w2))
     wgeq = x.w2 - x.wsat * x.a * ((x.w2 / x.wsat)^x.p * (1 - (x.w2 / x.wsat)^(8 * x.p)))
     ls.wgtend = -C1 / (c.rhow * d1) * ls.LEsoil / Lv - C2 / DAY * (ls.wg - wgeq)
-
-    # kinematic surface fluxes for the mixed layer
-    ml.wtheta = ls.H / (rho * cp)
-    ml.wq = ls.LE / (rho * Lv)
     return nothing
 end
 

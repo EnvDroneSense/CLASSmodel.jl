@@ -63,4 +63,16 @@ using CLASSmodel: esat, desat, qsat, init_model, step!
         end
         @test s.t == 3 && s.mixed_layer.h ≈ run_model(y).h[4]
     end
+
+    @testset "every output is written" begin
+        # a column the run loop forgets to write would stay at zero
+        out = run_model(ModelInput(;
+            runtime = 3600, sw_rad = true, sw_sl = true, sw_ls = true,
+            sw_cu = true, sw_chem = true, sw_wind = true, ls_type = :ags, wCO2 = 0.1, Wl = 1e-4,
+            dC = ntuple(_ -> 1.0, 22), wC = ntuple(_ -> 1.0, 22)))
+        for name in keys(out)
+            name in (:wqM, :wCO2M, :M, :ac, :cc) && continue    # zero without clouds
+            @test any(!=(0), out[name])
+        end
+    end
 end

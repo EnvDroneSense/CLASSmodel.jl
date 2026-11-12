@@ -1,19 +1,27 @@
 # Time stepping and the run loop.
 
 """
-    compute!(s::ModelState)
+    compute!(s::ModelState; first = false)
 
 Run the components for the current time: the diagnostics, then radiation, surface layer,
-land surface, cumulus and mixed layer, as far as they are switched on.
+land surface, cumulus and mixed layer, as far as they are switched on. With `first` (the
+initial state) the surface layer iterates 10 times and the cumulus gets entrainment fluxes.
 """
-function compute!(s::ModelState)
+function compute!(s::ModelState; first::Bool = false)
     x = s.input
     prescribed_fluxes!(s)
     statistics!(s)
     x.sw_rad && radiation!(s)
-    x.sw_sl && surface_layer!(s)
+    if x.sw_sl
+        for _ in 1:(first ? 10 : 1)
+            surface_layer!(s)
+        end
+    end
     x.sw_ls && land_surface!(s)
-    x.sw_cu && cumulus!(s)
+    if x.sw_cu
+        first && mixed_layer!(s)   # cumulus! needs the entrainment fluxes of mixed_layer!
+        cumulus!(s)
+    end
     x.sw_ml && mixed_layer!(s)
     return s
 end
