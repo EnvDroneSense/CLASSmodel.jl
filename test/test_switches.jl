@@ -65,13 +65,31 @@
         @test_logs (:warn, "LCL calculation not converged") match_mode=:any run_model(x)
     end
 
+    @testset "cumulus cloud cover in radiation" begin
+        x = (; runtime = 6 * 3600, sw_rad = true, sw_cu = true, cc = 0.1, q = 0.010, dq = -0.002)
+        off = run_model(ModelInput(; x...))
+        on = run_model(ModelInput(; x..., sw_curad = true))
+        @test all(==(0.1), off.cc)
+        @test on.cc == 2 .* on.ac    # radiation reads the value of the step before
+        @test any(>(0), on.ac) && on.Swin != off.Swin
+    end
+
+    @testset "sea" begin
+        x = (; runtime = 3600, sw_rad = true, sw_sl = true, sw_ls = true)
+        out = run_model(ModelInput(; x..., sw_sea = true, w2 = 0.6))   # w2 > wsat is not checked
+        @test all(==(0), out.rs) && all(==(0), out.LEsoil) && all(==(0), out.LEveg)
+        @test out.LE == out.LEliq == out.LEpot && all(isnan, out.G) && all(isnan, out.LEref)
+        @test out.H[1] > 0 && out.LE[1] > 0
+        @test_throws ArgumentError ModelInput(; x..., w2 = 0.6)
+    end
+
     @testset "every output is written" begin
         # a column the run loop forgets to write would stay at zero
         out = run_model(ModelInput(;
             runtime = 3600, sw_rad = true, sw_sl = true, sw_ls = true,
             sw_cu = true, sw_wind = true, ls_type = :ags, wCO2 = 0.1, Wl = 1e-4))
         for name in keys(out)
-            name in (:wqM, :wCO2M, :M, :ac) && continue    # zero without clouds
+            name in (:wqM, :wCO2M, :M, :ac, :cc) && continue    # zero without clouds
             @test any(!=(0), out[name])
         end
     end

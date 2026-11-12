@@ -28,7 +28,8 @@ end
 
 Aerodynamic and surface resistances, the skin temperature `Ts` from the linearised energy
 balance, the surface fluxes (written to the mixed layer as `wtheta` and `wq`) and the
-tendencies of the soil temperature, soil moisture and wet-leaf water layer.
+tendencies of the soil temperature, soil moisture and wet-leaf water layer. With `sw_sea`
+the fluxes are those of open water at the fixed `Ts`; `G` and `LEref` are `NaN`.
 """
 function land_surface!(s::ModelState)
     x, c, ml, wind, sl, ls = s.input, s.constants, s.mixed_layer, s.wind, s.surface_layer,
@@ -43,6 +44,18 @@ function land_surface!(s::ModelState)
     ml.qsat = qsat(ml.theta, x.Ps)
     dqsatdT = ε * desat(ml.theta) / x.Ps
     ml.e = ml.q * x.Ps / ε
+
+    if x.sw_sea   # open water at the fixed Ts: no resistances, no soil
+        ls.rs = 0
+        ls.LEveg = ls.LEsoil = 0
+        ls.LEliq = rho * Lv / sl.ra * (qsat(ls.Ts, x.Ps) - ml.q)
+        ls.LE = ls.LEpot = ls.LEliq
+        ls.H = rho * cp / sl.ra * (ls.Ts - ml.theta)
+        ls.G = ls.LEref = NaN
+        ml.wtheta = ls.H / (rho * cp)
+        ml.wq = ls.LE / (rho * Lv)
+        return nothing
+    end
 
     x.ls_type == :js ? jarvis_stewart!(s) : ags!(s)
 
@@ -97,6 +110,7 @@ end
 "Forward Euler step of the soil temperature, soil moisture and wet-leaf water layer."
 function integrate_land_surface!(s::ModelState)
     ls, dt = s.land_surface, s.input.dt
+    s.input.sw_sea && return nothing
     ls.Tsoil += dt * ls.Tsoiltend
     ls.wg += dt * ls.wgtend
     ls.Wl += dt * ls.Wltend

@@ -83,6 +83,7 @@ Base.@kwdef mutable struct RadiationState{T <: Real}
     Lwin::T = NaN           # incoming longwave radiation [W m-2]
     Lwout::T = NaN          # outgoing longwave radiation [W m-2]
     Q::T = NaN              # net radiation [W m-2]
+    cc::T = 0.0             # cloud cover used by the radiation [-]
 end
 
 "State of the surface layer: friction, momentum fluxes, drag, stability, surface and 2 m values."
@@ -172,7 +173,7 @@ function init_model(x::ModelInput{T};
             q = x.q, dq = x.dq, wq = x.wq, CO2 = x.CO2, dCO2 = x.dCO2,
             wCO2 = x.wCO2 * mg_to_ppm(constants)),
         WindState{T}(; u = x.u, du = x.du, v = x.v, dv = x.dv),
-        RadiationState{T}(; Q = x.Q),
+        RadiationState{T}(; Q = x.Q, cc = x.cc),
         SurfaceLayerState{T}(; ustar = x.ustar, thetasurf = x.theta),
         LandSurfaceState{T}(; Ts = x.Ts, Tsoil = x.Tsoil, wg = x.wg, Wl = x.Wl),
         CumulusState{T}(; dz_h = x.dz_h),

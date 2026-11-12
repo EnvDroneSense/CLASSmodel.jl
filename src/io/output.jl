@@ -6,7 +6,7 @@ const OUTPUT_NAMES = (
     :dq, :wq, :wqe, :wqM, :qsat, :e, :esat, :CO2, :dCO2, :wCO2, :wCO2A, :wCO2R, :wCO2e,
     :wCO2M, :u, :du, :uw, :v, :dv, :vw, :T2m, :q2m, :u2m, :v2m, :e2m, :esat2m, :thetasurf,
     :thetavsurf, :qsurf, :ustar, :z0m, :z0h, :Cm, :Cs, :L, :Rib, :Swin, :Swout, :Lwin,
-    :Lwout, :Q, :ra, :rs, :H, :LE, :LEliq, :LEveg, :LEsoil, :LEpot, :LEref, :G, :zlcl,
+    :Lwout, :Q, :cc, :ra, :rs, :H, :LE, :LEliq, :LEveg, :LEsoil, :LEpot, :LEref, :G, :zlcl,
     :RH_h, :ac, :M, :dz
 )
 
@@ -110,6 +110,7 @@ function store!(out::ModelOutput, s::ModelState)
     out.Lwin[i] = rad.Lwin
     out.Lwout[i] = rad.Lwout
     out.Q[i] = rad.Q
+    out.cc[i] = rad.cc
 
     out.ra[i] = sl.ra
     out.rs[i] = ls.rs

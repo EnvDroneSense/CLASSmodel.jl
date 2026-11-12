@@ -8,7 +8,8 @@ nan_sqrt(x) = x < 0 ? oftype(x, NaN) : sqrt(x)
 
 Cloud core fraction `ac`, mass flux `M` and the moisture and CO2 fluxes `wqM`, `wCO2M`
 carried by the clouds, from the humidity and CO2 variance at the top of the mixed layer.
-Needs the entrainment fluxes of a previous `mixed_layer!` call.
+Needs the entrainment fluxes of a previous `mixed_layer!` call. With `sw_curad` it also sets
+the cloud cover of the radiation to `2 ac`.
 """
 function cumulus!(s::ModelState)
     ml, cu = s.mixed_layer, s.cumulus
@@ -26,6 +27,7 @@ function cumulus!(s::ModelState)
     ac = 0.5 + 0.36 * atan(1.55 * ((ml.q - qsat(ml.T_h, ml.P_h)) / nan_sqrt(q2_h)))
     cu.ac = ac > 0 ? ac : zero(ac)
     cu.M = cu.ac * ml.wstar
+    s.input.sw_curad && (s.radiation.cc = 2 * cu.ac)
     cu.wqM = cu.M * nan_sqrt(q2_h)
 
     # CO2 mass flux only if the jump at the top is negative

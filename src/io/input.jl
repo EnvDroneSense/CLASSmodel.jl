@@ -88,7 +88,7 @@ fluxes. The input is checked when it is constructed (see [`validate`](@ref)).
 | Group | Fields |
 |:------|:-------|
 | time | `runtime`, `dt` |
-| switches | `sw_ml`, `sw_shearwe`, `sw_fixft`, `sw_wind`, `sw_sl`, `sw_rad`, `sw_ls`, `sw_cu` |
+| switches | `sw_ml`, `sw_shearwe`, `sw_fixft`, `sw_wind`, `sw_sl`, `sw_rad`, `sw_ls`, `sw_sea`, `sw_cu`, `sw_curad` |
 | mixed layer | `h`, `Ps`, `divU`, `fc`, `beta` |
 | diurnal cycle | `sinperiod`, `sw_wtheta`, `sw_wq` |
 | heat, moisture, CO2 | `theta`, `dtheta`, `gammatheta`, `advtheta`, `wtheta`, `q`, `dq`, `gammaq`, `advq`, `wq`, `CO2`, `dCO2`, `gammaCO2`, `advCO2`, `wCO2` |
@@ -102,6 +102,8 @@ Notes:
 - `ls_type` is `:js` (Jarvis-Stewart) or `:ags` (A-Gs); `c3c4` is `:c3` or `:c4`.
 - `wCO2` is in mg CO2 m-2 s-1 (converted with `mair / (rho * mco2)`).
 - `c_beta = 0` is a linear water stress response.
+- `sw_curad` has an effect only with `sw_cu` and `sw_rad`; without it, radiation uses `cc`.
+- `sw_sea` has an effect only with `sw_ls`: fixed `Ts`, open-water evaporation, no soil.
 """
 Base.@kwdef struct ModelInput{T <: Real}
     # time
@@ -116,7 +118,9 @@ Base.@kwdef struct ModelInput{T <: Real}
     sw_sl::Bool = false         # surface layer
     sw_rad::Bool = false        # radiation
     sw_ls::Bool = false         # land surface
+    sw_sea::Bool = false        # sea instead of land in the land surface (only with sw_ls)
     sw_cu::Bool = false         # cumulus parameterization
+    sw_curad::Bool = false      # cloud cover of the radiation follows the cumulus, cc = 2 ac
 
     # diurnal cycle of the prescribed surface fluxes (only without sw_ls)
     sinperiod::T = 43200        # half period of the sine of the fluxes [s]
@@ -227,9 +231,9 @@ Throw an `ArgumentError` if `input` cannot be run. Called by the
 - `dtheta != 0` when the mixed layer or the cumulus scheme is on
 - `0 <= cc <= 1`, `0 <= cveg <= 1`, `0 <= c_beta <= 1`
 - `ls_type` and `c3c4` have a known value
-- with `sw_ls`: `LAI`, `Wmax`, `wg` > 0, `0 < w2 < wsat` and `wwilt < wfc <= wsat`
+- with `sw_ls` and not `sw_sea`: `LAI`, `Wmax`, `wg` > 0, `0 < w2 < wsat` and `wwilt < wfc <= wsat`
 - with `sw_cu`: `dz_h > 0`
-- A-Gs (`sw_ls` with `ls_type = :ags`) needs `sw_rad`, because it uses the
+- A-Gs (`sw_ls` without `sw_sea`, `ls_type = :ags`) needs `sw_rad`, because it uses the
   incoming shortwave radiation
 """
 function validate(x::ModelInput)
@@ -260,7 +264,7 @@ function validate(x::ModelInput)
     x.ls_type in (:js, :ags) ||
         throw(ArgumentError("ls_type must be :js or :ags, got :$(x.ls_type)"))
     x.c3c4 in (:c3, :c4) || throw(ArgumentError("c3c4 must be :c3 or :c4, got :$(x.c3c4)"))
-    if x.sw_ls
+    if x.sw_ls && !x.sw_sea
         positive(:LAI, x.LAI)
         positive(:Wmax, x.Wmax)
         positive(:wg, x.wg)

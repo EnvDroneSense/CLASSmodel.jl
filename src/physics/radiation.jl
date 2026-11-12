@@ -6,7 +6,8 @@
 Shortwave and longwave radiation at the surface and the net radiation `Q`. The solar
 elevation follows from the day of the year, the latitude, the longitude and the time of
 day; the day of the year is not advanced during a run. The outgoing longwave radiation
-uses the surface temperature of the land surface.
+uses the surface temperature of the land surface. The cloud cover is `rad.cc`: the input
+`cc`, or `2 ac` of the previous step with `sw_curad`.
 """
 function radiation!(s::ModelState)
     x, c, ml, rad = s.input, s.constants, s.mixed_layer, s.radiation
@@ -18,7 +19,7 @@ function radiation!(s::ModelState)
     sinlea = max(sinlea, 0.0001)
 
     Ta = ml.theta * ((x.Ps - 0.1 * ml.h * c.rho * c.g) / x.Ps)^(c.Rd / c.cp)   # at 10 % of h
-    Tr = (0.6 + 0.2 * sinlea) * (1 - 0.4 * x.cc)
+    Tr = (0.6 + 0.2 * sinlea) * (1 - 0.4 * rad.cc)
 
     rad.Swin = c.S0 * Tr * sinlea
     rad.Swout = x.alpha * c.S0 * Tr * sinlea

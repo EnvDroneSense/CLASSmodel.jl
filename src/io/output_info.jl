@@ -56,6 +56,7 @@ const VARIABLE_INFO = (
     Lwin = (title = "Incoming longwave radiation", unit = "W m-2", symbol = "LW↓"),
     Lwout = (title = "Outgoing longwave radiation", unit = "W m-2", symbol = "LW↑"),
     Q = (title = "Net radiation", unit = "W m-2", symbol = "Q"),
+    cc = (title = "Cloud cover", unit = "-", symbol = "cc"),
     ra = (title = "Aerodynamic resistance", unit = "s m-1", symbol = "ra"),
     rs = (title = "Surface resistance", unit = "s m-1", symbol = "rs"),
     H = (title = "Sensible heat flux", unit = "W m-2", symbol = "H"),
