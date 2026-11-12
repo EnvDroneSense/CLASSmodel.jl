@@ -28,6 +28,18 @@ using CLASSmodel: esat, desat, qsat, init_model, step!
         @test_throws ArgumentError mixed_layer_profile(x, out, 1; ztop = 100)
     end
 
+    @testset "progress callback" begin
+        x = ModelInput(; runtime = 3600, dt = 60)
+        full = run_model(x)
+        calls = Int[]
+        out = run_model(x; progress_every = 7,
+            progress = (i, n, o) -> (push!(calls, i); i < 10))
+        @test calls == [7, 14] && isequal(out, map(v -> v[1:14], full))
+        calls = Int[]
+        run_model(x; progress_every = 25, progress = (i, n, o) -> push!(calls, i))
+        @test calls == [25, 50, 60]
+    end
+
     @testset "run loop" begin
         x = ModelInput(; runtime = 1000, dt = 60, tstart = 6, wCO2 = 0.2, sw_ml = false)
         s = init_model(x)

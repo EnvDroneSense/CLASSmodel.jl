@@ -9,6 +9,23 @@
         @test AGsParameters{Float32}(C4()) isa AGsParameters{Float32}
     end
 
+    @testset "input_info" begin
+        x = ModelInput()
+        @test keys(CLASSmodel.INPUT_INFO) == fieldnames(ModelInput)   # every field, no extra
+        for name in fieldnames(ModelInput)
+            info, v = input_info(name), getfield(x, name)
+            if v isa Symbol
+                @test v in info.options
+            elseif v isa Bool
+                @test info.min === nothing && info.max === nothing
+            else
+                @test info.min <= v <= info.max
+            end
+        end
+        @test input_info(:wCO2).unit == "mg CO2 m-2 s-1"
+        @test_throws ArgumentError input_info(:nonsense)
+    end
+
     @testset "validation" begin
         invalid = (
             (; dt = 0), (; runtime = 30, dt = 60), (; h = -1), (; Ps = 0), (; z0m = 0), (;

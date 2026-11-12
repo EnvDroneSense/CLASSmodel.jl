@@ -22,6 +22,9 @@ using CLASSmodel: E1
     @test out.wCO2 ≈ out.wCO2A + out.wCO2R
     @test out.wCO2A ≈ ags(c3c4 = :c3).wCO2A && out.wCO2A != ags(c3c4 = :c4).wCO2A
 
+    # a vapour pressure deficit above f0/ad has no valid ci
+    @test_throws r"f0/ad" ags(c3c4 = :c4, q = 0.002, theta = 310, Ts = 310, Tsoil = 310, T2 = 310)
+
     # drier soil, stronger water stress, higher surface resistance
     @test ags(w2 = 0.2).rs[1] > ags(w2 = 0.3).rs[1]
     @test ags(w2 = 0.2, c_beta = 0.5).rs[1] != ags(w2 = 0.2).rs[1]

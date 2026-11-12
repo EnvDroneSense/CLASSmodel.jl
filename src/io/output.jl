@@ -1,4 +1,4 @@
-# Output, time stepping and the run loop.
+# Output table: names, type, storage of a step and the mixed-layer profile.
 
 # Names of the output variables, in the order of the columns.
 const OUTPUT_NAMES = (
@@ -128,60 +128,5 @@ function store!(out::ModelOutput, s::ModelState)
     out.ac[i] = cu.ac
     out.M[i] = cu.M
     out.dz[i] = cu.dz_h
-    return out
-end
-
-"""
-    compute!(s::ModelState)
-
-Run the components for the current time: the diagnostics, then radiation, surface layer,
-land surface, cumulus and mixed layer, as far as they are switched on.
-"""
-function compute!(s::ModelState)
-    x = s.input
-    statistics!(s)
-    x.sw_rad && radiation!(s)
-    x.sw_sl && surface_layer!(s)
-    x.sw_ls && land_surface!(s)
-    x.sw_cu && cumulus!(s)
-    x.sw_ml && mixed_layer!(s)
-    return s
-end
-
-"Advance the land surface and the mixed layer by one time step from their tendencies."
-function integrate!(s::ModelState)
-    x = s.input
-    x.sw_ls && integrate_land_surface!(s)
-    x.sw_ml && integrate_mixed_layer!(s)
-    s.t += 1
-    return s
-end
-
-"""
-    step!(s::ModelState)
-
-Advance the model by one time step: compute the components, then integrate the
-land surface and the mixed layer. The diagnostics of the step are left in `s`.
-"""
-function step!(s::ModelState)
-    compute!(s)
-    integrate!(s)
-    return s
-end
-
-"""
-    run_model(input; constants = PhysicalConstants{T}()) -> ModelOutput
-
-Run the model for `floor(runtime / dt)` steps and return the time series. Each row holds
-the state before the time step is integrated.
-"""
-function run_model(x::ModelInput{T}; kwargs...) where {T}
-    s = init_model(x; kwargs...)
-    out = empty_output(T, floor(Int, x.runtime / x.dt))
-    for _ in eachindex(out.t)
-        compute!(s)
-        store!(out, s)
-        integrate!(s)
-    end
     return out
 end

@@ -61,7 +61,7 @@ Base.@kwdef struct AGsParameters{T <: Real}
     ad::T           # regression coefficient of Cfrac [kPa-1]
     alpha0::T       # initial low light conditions [mg J-1]
     Kx::T           # extinction coefficient of PAR [-]
-    gmin::T         # cuticular (minimum) conductance [mm s-1]
+    gmin::T         # cuticular (minimum) conductance [m s-1]
 end
 
 AGsParameters(plant::PlantType) = AGsParameters{Float64}(plant)
