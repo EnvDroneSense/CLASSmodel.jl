@@ -20,6 +20,7 @@ const INPUT_INFO = (
     sw_sea = flag("Sea instead of land", "sw_sea"),
     sw_cu = flag("Cumulus parameterization", "sw_cu"),
     sw_curad = flag("Cumulus cloud cover in radiation", "sw_curad"),
+    sw_chem = flag("Chemical reactions", "sw_chem"),
     sinperiod = num("Half period of the flux cycle", "s", "T_sin", 3600, 86400),
     sw_wtheta = flag("Diurnal cycle of the heat flux", "sw_wtheta"),
     sw_wq = flag("Diurnal cycle of the moisture flux", "sw_wq"),
@@ -54,6 +55,16 @@ const INPUT_INFO = (
     advC = num("Species advection", "ppb s-1", "advC", -0.01, 0.01),
     wC = num("Surface species flux", "ppb m s-1", "w'C'ₛ", -10, 10),
     sw_wC = choice("Species flux mode", "sw_wC", (0, 1)),
+    sw_chem_constant = flag("Chemistry at the reference state", "sw_chem_constant"),
+    sw_photo_constant = flag("Photolysis at the reference time", "sw_photo_constant"),
+    sw_reactions = choice("Reaction switches", "sw_reactions", (false, true)),
+    tod_ref = num("Reference time of the day", "h UTC", "tod_ref", 0, 24),
+    Tcbl_ref = num("Reference temperature of the mixed layer", "K", "Tcbl_ref", 250, 320),
+    Tft_ref = num("Reference temperature of the free troposphere", "K", "Tft_ref", 250, 320),
+    qcbl_ref = num("Reference humidity of the mixed layer", "kg kg-1", "qcbl_ref", 0, 0.03),
+    qft_ref = num("Reference humidity of the free troposphere", "kg kg-1", "qft_ref", 0, 0.03),
+    P_ref = num("Reference pressure", "Pa", "P_ref", 50000, 105000),
+    stocoef = num("OH yield of RO2 + HO2", "-", "stocoef", 0, 10),
     u = num("Initial u wind", "m s-1", "u", -20, 20),
     du = num("Initial u wind jump", "m s-1", "Δu", -20, 20),
     gammau = num("u wind lapse rate", "s-1", "γu", -0.01, 0.01),
@@ -106,8 +117,8 @@ const INPUT_INFO = (
 
 Title, unit and symbol of the `ModelInput` field `name`, with the range `min` and `max` for a
 slider (not a validity rule; see [`validate`](@ref)). The unit is the model unit, `"-"` for a
-dimensionless field. A species field (`C`, `dC`, ...) holds one value for each species; the entry
-gives the range of one value. A switch has `min = max = nothing`; a `Symbol` field has `options`
+dimensionless field. A species field (`C`, `dC`, ...) holds one value for each species, and `sw_reactions` one
+switch for each reaction; the entry gives the range of one value. A switch has `min = max = nothing`; a `Symbol` field has `options`
 instead of a range (`sw_wC`: the modes 0 and 1). The typical value is the default of `ModelInput()`.
 """
 function input_info(name::Symbol)

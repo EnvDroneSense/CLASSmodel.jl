@@ -4,6 +4,7 @@
 const SPECIES = (:Inert, :O3, :O1D, :NO, :NO2, :CH4, :CH2O, :CH3O2, :MVK, :ISO, :RO2, :OH,
     :HO2, :CO, :H2O, :Product, :O2, :N2, :HNO3, :H2O2, :NO3, :N2O5)
 const NSPECIES = length(SPECIES)
+const NREACTIONS = 28   # reactions of the chemistry scheme, see reactions.jl
 # default mixing ratios [ppb] and surface fluxes [ppb m s-1]
 const SPECIES_ZERO = ntuple(_ -> 0.0, NSPECIES)
 const SPECIES_C0 = float.((0, 30, 0, 0.4, 0.6, 1724, 0, 0, 0, 0, 0, 0, 0, 100, 0, 0, 0.2e9, 0.8e9,
@@ -104,6 +105,7 @@ fluxes. The input is checked when it is constructed (see [`validate`](@ref)).
 | heat, moisture, CO2 | `theta`, `dtheta`, `gammatheta`, `advtheta`, `wtheta`, `q`, `dq`, `gammaq`, `advq`, `wq`, `CO2`, `dCO2`, `gammaCO2`, `advCO2`, `wCO2` |
 | scalar | `S`, `dS`, `gammaS`, `advS`, `wS` |
 | chemical species | `C`, `dC`, `gammaC`, `advC`, `wC`, `sw_wC` (one value for each of the 22 species) |
+| chemistry | `sw_chem`, `sw_chem_constant`, `sw_photo_constant`, `sw_reactions` (one switch for each of the 28 reactions), `tod_ref`, `Tcbl_ref`, `Tft_ref`, `qcbl_ref`, `qft_ref`, `P_ref`, `stocoef` |
 | wind | `u`, `du`, `gammau`, `advu`, `v`, `dv`, `gammav`, `advv` |
 | surface layer | `ustar`, `z0m`, `z0h` |
 | radiation | `lat`, `lon`, `doy`, `tstart`, `cc`, `Q`, `dFz` |
@@ -115,8 +117,13 @@ Notes:
 - `wCO2` is in mg CO2 m-2 s-1 (converted with `mair / (rho * mco2)`).
 - `c_beta = 0` is a linear water stress response.
 - The scalar `S` is passive and has no unit of its own: `[S]` is the unit you choose.
-- The 22 species of `CLASSmodel.SPECIES` are passive for now, like `S`, in ppb. `sw_wC` is the
-  flux mode of each: 0 constant `wC`, 1 `wC * sin(pi t / sinperiod)`.
+- The 22 species of `CLASSmodel.SPECIES` are in ppb. Without `sw_chem` they are passive, like `S`.
+  `sw_wC` is the flux mode of each: 0 constant `wC`, 1 `wC * sin(pi t / sinperiod)`.
+- `sw_chem` runs the reactions of `sw_reactions` (see `chemistry!`). `sw_chem_constant`
+  takes pressure, temperature and humidity from the reference state (`P_ref`, `Tcbl_ref`, `Tft_ref`,
+  `qcbl_ref`, `qft_ref`: mixed layer and free troposphere) and not from the mixed layer.
+  `sw_photo_constant` fixes the sun of the photolysis at the hour `tod_ref` [h UTC] in the day.
+  `stocoef` is the OH yield of the reaction RO2 + HO2.
 - `sw_curad` has an effect only with `sw_cu` and `sw_rad`; without it, radiation uses `cc`.
 - `sw_sea` has an effect only with `sw_ls`: fixed `Ts`, open-water evaporation, no soil.
 """
@@ -136,6 +143,7 @@ Base.@kwdef struct ModelInput{T <: Real}
     sw_sea::Bool = false        # sea instead of land in the land surface (only with sw_ls)
     sw_cu::Bool = false         # cumulus parameterization
     sw_curad::Bool = false      # cloud cover of the radiation follows the cumulus, cc = 2 ac
+    sw_chem::Bool = false       # chemical reactions of the species
 
     # diurnal cycle of the prescribed surface fluxes (only without sw_ls)
     sinperiod::T = 43200        # half period of the sine of the fluxes [s]
@@ -184,6 +192,18 @@ Base.@kwdef struct ModelInput{T <: Real}
     advC::NTuple{NSPECIES, T} = SPECIES_ZERO         # advection [ppb s-1]
     wC::NTuple{NSPECIES, T} = SPECIES_WC0 # surface flux [ppb m s-1]
     sw_wC::NTuple{NSPECIES, Int} = ntuple(_ -> 0, NSPECIES)            # flux mode: 0 constant, 1 sine
+
+    # chemistry, used with sw_chem
+    sw_chem_constant::Bool = true   # rates at the reference state instead of the mixed layer
+    sw_photo_constant::Bool = true  # photolysis with the sun at tod_ref in the day
+    sw_reactions::NTuple{NREACTIONS, Bool} = ntuple(_ -> true, NREACTIONS)   # reactions r01 to r28
+    tod_ref::T = 12                 # reference time of the day for the photolysis [h UTC]
+    Tcbl_ref::T = 298               # reference temperature of the mixed layer [K]
+    Tft_ref::T = 298                # reference temperature of the free troposphere [K]
+    qcbl_ref::T = 0.010             # reference specific humidity of the mixed layer [kg kg-1]
+    qft_ref::T = 0.010              # reference specific humidity of the free troposphere [kg kg-1]
+    P_ref::T = 100000               # reference pressure [Pa]
+    stocoef::T = 0                  # OH yield of RO2 + HO2 [-]
 
     # wind
     u::T = 6                    # initial mixed-layer u-wind speed [m s-1]
@@ -261,6 +281,7 @@ Throw an `ArgumentError` if `input` cannot be run. Called by the
 - `dtheta != 0` when the mixed layer or the cumulus scheme is on
 - `0 <= cc <= 1`, `0 <= cveg <= 1`, `0 <= c_beta <= 1`
 - `C >= 0` and `sw_wC` is 0 or 1 for every species
+- `0 <= tod_ref <= 24`, `P_ref`, `Tcbl_ref`, `Tft_ref` > 0, `qcbl_ref`, `qft_ref`, `stocoef` >= 0
 - `ls_type` and `c3c4` have a known value
 - with `sw_ls` and not `sw_sea`: `LAI`, `Wmax`, `wg` > 0, `0 < w2 < wsat` and `wwilt < wfc <= wsat`
 - with `sw_cu`: `dz_h > 0`
@@ -288,6 +309,13 @@ function validate(x::ModelInput)
     positive(:sinperiod, x.sinperiod)
     positive(:h, x.h)
     positive(:Ps, x.Ps)
+    for name in (:P_ref, :Tcbl_ref, :Tft_ref)
+        positive(name, getfield(x, name))
+    end
+    for name in (:qcbl_ref, :qft_ref, :stocoef)
+        getfield(x, name) >= 0 || throw(ArgumentError("$name must be >= 0"))
+    end
+    0 <= x.tod_ref <= 24 || throw(ArgumentError("tod_ref must be in [0, 24], got $(x.tod_ref)"))
     positive(:z0m, x.z0m)
     positive(:z0h, x.z0h)
     x.runtime >= x.dt || throw(ArgumentError("runtime must be at least dt"))

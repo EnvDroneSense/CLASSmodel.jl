@@ -7,7 +7,7 @@ const OUTPUT_NAMES = (
     :wCO2M, :S, :dS, :wS, :wSe, :wSM, :u, :du, :uw, :v, :dv, :vw, :T2m, :q2m, :u2m, :v2m, :e2m, :esat2m, :thetasurf,
     :thetavsurf, :qsurf, :ustar, :z0m, :z0h, :Cm, :Cs, :L, :Rib, :Swin, :Swout, :Lwin,
     :Lwout, :Q, :cc, :ra, :rs, :H, :LE, :LEliq, :LEveg, :LEsoil, :LEpot, :LEref, :G, :zlcl,
-    :RH_h, :ac, :M, :dz, SPECIES...
+    :RH_h, :ac, :M, :dz, :phi, :k_r05, SPECIES...
 )
 
 """
@@ -135,6 +135,9 @@ function store!(out::ModelOutput, s::ModelState)
     out.ac[i] = cu.ac
     out.M[i] = cu.M
     out.dz[i] = cu.dz_h
+
+    out.phi[i] = s.chemistry.phi
+    out.k_r05[i] = s.chemistry.k_r05
 
     cols = values(out)   # the species are the last columns
     for k in 1:NSPECIES

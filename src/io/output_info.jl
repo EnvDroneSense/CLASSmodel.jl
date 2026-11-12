@@ -76,7 +76,9 @@ const BASE_INFO = (
     RH_h = (title = "Relative humidity at h", unit = "-", symbol = "RH(h)"),
     ac = (title = "Cloud core fraction", unit = "-", symbol = "ac"),
     M = (title = "Cumulus mass flux", unit = "m s-1", symbol = "M"),
-    dz = (title = "Transition layer thickness", unit = "m", symbol = "Δz")
+    dz = (title = "Transition layer thickness", unit = "m", symbol = "Δz"),
+    phi = (title = "Photostationary state of NO, NO2 and O3", unit = "-", symbol = "φ"),
+    k_r05 = (title = "NO2 photolysis rate", unit = "s-1", symbol = "k_r05")
 )
 
 const VARIABLE_INFO = merge(BASE_INFO,

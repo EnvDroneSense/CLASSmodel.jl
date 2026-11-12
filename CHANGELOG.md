@@ -32,9 +32,17 @@ An entry outside "Changes to model results" leaves results unchanged.
 
 - Diurnal cycle of the prescribed surface fluxes: `sw_wtheta`, `sw_wq` and `sinperiod` make `wtheta`
   and `wq` follow a half sine (only without `sw_ls`).
-- 22 chemical species as passive scalars: inputs `C`, `dC`, `gammaC`, `advC`, `wC` and `sw_wC` (tuples with one
+- 22 chemical species: inputs `C`, `dC`, `gammaC`, `advC`, `wC` and `sw_wC` (tuples with one
   value for each species of `CLASSmodel.SPECIES`, in ppb) and 22 output columns, one for each species.
-  There are no reactions yet.
+  The species are transported like a scalar.
+- Gas-phase chemistry of the C++ model: `sw_chem` runs its 28 reactions (`sw_reactions` switches each one)
+  with an implicit Gauss-Seidel solver. `sw_chem_constant` and `sw_photo_constant` fix the rates at a
+  reference state (`P_ref`, `Tcbl_ref`, `Tft_ref`, `qcbl_ref`, `qft_ref`, `tod_ref`); `stocoef` is the OH yield of
+  RO2 + HO2. New output columns `phi` (photostationary state) and `k_r05` (NO2 photolysis rate).
+  Compared with the C++ model, the powers use double precision (the C++ model uses single precision
+  in a few terms, a relative difference of 1e-8) and the photolysis of the free troposphere is zero at night
+  (the C++ model keeps its last daytime value). With `sw_chem_constant` and `sw_photo_constant` the
+  difference after sunset is up to 10 % in some species.
 - Passive scalar `S` with `dS`, `gammaS`, `advS` and `wS`, like CO2, and the outputs `S`, `dS`, `wS`,
   `wSe` and `wSM`.
 - `sw_curad`: with `sw_cu` and `sw_rad`, the cloud cover of the radiation is `2 ac` of the previous step.

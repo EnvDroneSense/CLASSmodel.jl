@@ -163,6 +163,24 @@ function SpeciesState(x::ModelInput{T}) where {T}
         zeros(T, NSPECIES), zeros(T, NSPECIES), zeros(T, NSPECIES))
 end
 
+"State of the chemistry: the scheme, the rate constants and the work arrays of the solver."
+mutable struct ChemistryState{T <: Real}
+    scheme::ChemistryScheme{T}
+    Kcbl::Vector{T}         # rate constants in the mixed layer
+    Kft::Vector{T}          # rate constants in the free troposphere
+    y::Vector{T}            # solver: mixing ratios
+    y0::Vector{T}           # solver: mixing ratios at the start of the step
+    fsc::Vector{T}          # mixing ratios in the free troposphere, C + dC
+    phi::T                  # photostationary state of NO, NO2 and O3 [-]
+    k_r05::T                # NO2 photolysis rate [s-1]
+end
+
+function ChemistryState(x::ModelInput{T}) where {T}
+    scheme = x.sw_chem ? chemistry_scheme(x) : ChemistryScheme{T}()
+    return ChemistryState{T}(scheme, zeros(T, NREACTIONS), zeros(T, NREACTIONS),
+        zeros(T, NSPECIES), zeros(T, NSPECIES), zeros(T, NSPECIES), zero(T), zero(T))
+end
+
 """
     ModelState{T}
 
@@ -180,6 +198,7 @@ mutable struct ModelState{T <: Real}
     land_surface::LandSurfaceState{T}
     cumulus::CumulusState{T}
     species::SpeciesState{T}
+    chemistry::ChemistryState{T}
     t::Int
 end
 
@@ -203,6 +222,7 @@ function init_model(x::ModelInput{T};
         LandSurfaceState{T}(; Ts = x.Ts, Tsoil = x.Tsoil, wg = x.wg, Wl = x.Wl),
         CumulusState{T}(; dz_h = x.dz_h),
         SpeciesState(x),
+        ChemistryState(x),
         0
     )
 
@@ -220,5 +240,6 @@ function init_model(x::ModelInput{T};
         cumulus!(s)
     end
     x.sw_ml && mixed_layer!(s)
+    x.sw_chem && chemistry!(s, x.dt / 1000)   # spin up with a very small step
     return s
 end

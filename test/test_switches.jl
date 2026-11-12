@@ -105,11 +105,33 @@
         @test jump.O3 ≈ jump.S
     end
 
+    @testset "chemistry" begin
+        chem(; kw...) = run(; sw_chem = true, wtheta = 0, kw...)
+        # no reactions: only the transport and H2O, which is set from q
+        none = ntuple(_ -> false, 28)
+        a, b = chem(; sw_reactions = none), run(; wtheta = 0)
+        @test all(getproperty(a, n) == getproperty(b, n) for n in CLASSmodel.SPECIES if n != :H2O)
+        @test a.H2O[end] ≈ 0.010 * 1e9 * 28.97 / 18    # qcbl_ref
+        @test all(==(0), a.phi) && all(==(0), a.k_r05)
+        # NO2 + sun -> NO + O3 alone, without transport: the implicit step is exact
+        only = ntuple(i -> i == 5, 28)
+        c = chem(; sw_reactions = only, sw_ml = false)
+        K = c.k_r05[2]
+        @test K > 0 && c.NO2[2] ≈ c.NO2[1] / (1 + 60K) && c.NO[2] + c.NO2[2] ≈ c.NO[1] + c.NO2[1]
+        # photolysis follows the sun when it is not fixed: zero at night, and positive by day
+        d = run_model(ModelInput(; runtime = 86400, sw_chem = true, sw_photo_constant = false,
+            tstart = 0, lat = 0, lon = 0))
+        @test d.k_r05[1] == 0 && maximum(d.k_r05) > 0 && count(==(0), d.k_r05) > 400
+        # RO2 + HO2 gives OH only with stocoef
+        iso = (; wC = ntuple(i -> i == 10 ? 0.5 : 0.0, 22), C = ntuple(i -> i in (10, 12, 13) ? 1.0 : 0.0, 22))
+        @test chem(; iso..., stocoef = 2).OH[end] > chem(; iso..., stocoef = 0).OH[end]
+    end
+
     @testset "every output is written" begin
         # a column the run loop forgets to write would stay at zero
         out = run_model(ModelInput(;
             runtime = 3600, sw_rad = true, sw_sl = true, sw_ls = true,
-            sw_cu = true, sw_wind = true, ls_type = :ags, wCO2 = 0.1, Wl = 1e-4,
+            sw_cu = true, sw_chem = true, sw_wind = true, ls_type = :ags, wCO2 = 0.1, Wl = 1e-4,
             S = 1, dS = 1, wS = 0.01,
             dC = ntuple(_ -> 1.0, 22), wC = ntuple(_ -> 1.0, 22)))
         for name in keys(out)
