@@ -5,18 +5,22 @@
 
 Set the surface fluxes of heat and moisture of the current time to a half sine, for the
 switches `sw_wtheta` and `sw_wq`. The land surface sets the fluxes itself, so `sw_ls`
-turns this off. The species fluxes with `sw_wC = 1` follow the same sine, also with `sw_ls`. The flux of a step is the one at the end of the step, as in the C++ model:
+turns this off. The species fluxes with `sw_wC = 1` follow the same sine, and with `sw_wC = 2` the sine of the solar
+elevation divided by its noon value, zero at night; both also with `sw_ls`. The flux of a step is the one at the end of the step, as in the C++ model:
 the input value at `sinperiod / 2`, negative after `sinperiod`, no clipping.
 """
 function prescribed_fluxes!(s::ModelState)
     x, ml, sp = s.input, s.mixed_layer, s.species
     sine = sin(pi / x.sinperiod * (s.t + 1) * x.dt)
+    sun = any(==(2), x.sw_wC) ?
+          max(solar_elevation(x, (s.t + 1) * x.dt + x.tstart * 3600), 0) / solar_elevation_max(x) : zero(sine)
     if !x.sw_ls
         x.sw_wtheta && (ml.wtheta = x.wtheta * sine)
         x.sw_wq && (ml.wq = x.wq * sine)
     end
     for i in 1:NSPECIES
         x.sw_wC[i] == 1 && (sp.wC[i] = x.wC[i] * sine)
+        x.sw_wC[i] == 2 && (sp.wC[i] = x.wC[i] * sun)
     end
     return s
 end

@@ -118,7 +118,8 @@ Notes:
 - `c_beta = 0` is a linear water stress response.
 - The scalar `S` is passive and has no unit of its own: `[S]` is the unit you choose.
 - The 22 species of `CLASSmodel.SPECIES` are in ppb. Without `sw_chem` they are passive, like `S`.
-  `sw_wC` is the flux mode of each: 0 constant `wC`, 1 `wC * sin(pi t / sinperiod)`.
+  `sw_wC` is the flux mode of each: 0 constant `wC`, 1 `wC * sin(pi t / sinperiod)`,
+  2 `wC` times the solar elevation divided by its noon value (zero at night).
 - `sw_chem` runs the reactions of `sw_reactions` (see `chemistry!`). `sw_chem_constant`
   takes pressure, temperature and humidity from the reference state (`P_ref`, `Tcbl_ref`, `Tft_ref`,
   `qcbl_ref`, `qft_ref`: mixed layer and free troposphere) and not from the mixed layer.
@@ -191,7 +192,7 @@ Base.@kwdef struct ModelInput{T <: Real}
     gammaC::NTuple{NSPECIES, T} = SPECIES_ZERO       # lapse rate above h [ppb m-1]
     advC::NTuple{NSPECIES, T} = SPECIES_ZERO         # advection [ppb s-1]
     wC::NTuple{NSPECIES, T} = SPECIES_WC0 # surface flux [ppb m s-1]
-    sw_wC::NTuple{NSPECIES, Int} = ntuple(_ -> 0, NSPECIES)            # flux mode: 0 constant, 1 sine
+    sw_wC::NTuple{NSPECIES, Int} = ntuple(_ -> 0, NSPECIES)            # flux mode: 0 constant, 1 sine, 2 sun
 
     # chemistry, used with sw_chem
     sw_chem_constant::Bool = true   # rates at the reference state instead of the mixed layer
@@ -280,7 +281,7 @@ Throw an `ArgumentError` if `input` cannot be run. Called by the
 - positive time step, run time, `sinperiod`, `h`, `Ps`, `z0m`, `z0h`
 - `dtheta != 0` when the mixed layer or the cumulus scheme is on
 - `0 <= cc <= 1`, `0 <= cveg <= 1`, `0 <= c_beta <= 1`
-- `C >= 0` and `sw_wC` is 0 or 1 for every species
+- `C >= 0` and `sw_wC` is 0, 1 or 2 for every species
 - `0 <= tod_ref <= 24`, `P_ref`, `Tcbl_ref`, `Tft_ref` > 0, `qcbl_ref`, `qft_ref`, `stocoef` >= 0
 - `ls_type` and `c3c4` have a known value
 - with `sw_ls` and not `sw_sea`: `LAI`, `Wmax`, `wg` > 0, `0 < w2 < wsat` and `wwilt < wfc <= wsat`
@@ -303,7 +304,7 @@ function validate(x::ModelInput)
         end
     end
     all(>=(0), x.C) || throw(ArgumentError("C must be >= 0, got $(x.C)"))
-    all(in((0, 1)), x.sw_wC) || throw(ArgumentError("sw_wC must be 0 or 1, got $(x.sw_wC)"))
+    all(in((0, 1, 2)), x.sw_wC) || throw(ArgumentError("sw_wC must be 0, 1 or 2, got $(x.sw_wC)"))
     positive(:runtime, x.runtime)
     positive(:dt, x.dt)
     positive(:sinperiod, x.sinperiod)

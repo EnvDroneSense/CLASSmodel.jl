@@ -13,6 +13,12 @@ function solar_elevation(x::ModelInput, time)
            cos(2π * x.lat / 360) * cos(sda) * cos(hour_angle)
 end
 
+"Sine of the solar elevation at noon of the day, the maximum of `solar_elevation`."
+function solar_elevation_max(x::ModelInput)
+    sda = 0.409 * cos(2π * (x.doy - 173) / 365)
+    return sin(2π * x.lat / 360) * sin(sda) + cos(2π * x.lat / 360) * cos(sda)
+end
+
 """
     radiation!(s::ModelState)
 

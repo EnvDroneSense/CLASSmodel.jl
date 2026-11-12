@@ -54,7 +54,7 @@ const INPUT_INFO = (
     gammaC = num("Species lapse rate", "ppb m-1", "γC", -0.1, 0.1),
     advC = num("Species advection", "ppb s-1", "advC", -0.01, 0.01),
     wC = num("Surface species flux", "ppb m s-1", "w'C'ₛ", -10, 10),
-    sw_wC = choice("Species flux mode", "sw_wC", (0, 1)),
+    sw_wC = choice("Species flux mode", "sw_wC", (0, 1, 2)),
     sw_chem_constant = flag("Chemistry at the reference state", "sw_chem_constant"),
     sw_photo_constant = flag("Photolysis at the reference time", "sw_photo_constant"),
     sw_reactions = choice("Reaction switches", "sw_reactions", (false, true)),
@@ -119,7 +119,7 @@ Title, unit and symbol of the `ModelInput` field `name`, with the range `min` an
 slider (not a validity rule; see [`validate`](@ref)). The unit is the model unit, `"-"` for a
 dimensionless field. A species field (`C`, `dC`, ...) holds one value for each species, and `sw_reactions` one
 switch for each reaction; the entry gives the range of one value. A switch has `min = max = nothing`; a `Symbol` field has `options`
-instead of a range (`sw_wC`: the modes 0 and 1). The typical value is the default of `ModelInput()`.
+instead of a range (`sw_wC`: the modes 0, 1 and 2). The typical value is the default of `ModelInput()`.
 """
 function input_info(name::Symbol)
     haskey(INPUT_INFO, name) || throw(ArgumentError("unknown input field :$name"))

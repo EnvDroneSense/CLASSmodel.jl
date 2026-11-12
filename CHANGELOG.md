@@ -34,7 +34,7 @@ An entry outside "Changes to model results" leaves results unchanged.
   and `wq` follow a half sine (only without `sw_ls`).
 - 22 chemical species: inputs `C`, `dC`, `gammaC`, `advC`, `wC` and `sw_wC` (tuples with one
   value for each species of `CLASSmodel.SPECIES`, in ppb) and 22 output columns, one for each species.
-  The species are transported like a scalar.
+  The species are transported like a scalar. `sw_wC` is 0 (constant), 1 (sine) or 2 (sun).
 - Gas-phase chemistry of the C++ model: `sw_chem` runs its 28 reactions (`sw_reactions` switches each one)
   with an implicit Gauss-Seidel solver. `sw_chem_constant` and `sw_photo_constant` fix the rates at a
   reference state (`P_ref`, `Tcbl_ref`, `Tft_ref`, `qcbl_ref`, `qft_ref`, `tod_ref`); `stocoef` is the OH yield of

@@ -41,7 +41,7 @@
             (; sw_ls = true, Wmax = 0), (; sw_ls = true, wg = 0), (; sw_ls = true, w2 = 0),
             (; sw_ls = true, w2 = 0.472), (; sw_cu = true, dz_h = 0),
             (; theta = NaN), (; fc = Inf), (; dq = NaN),
-            (; C = ntuple(_ -> -1.0, 22)), (; sw_wC = ntuple(_ -> 2, 22)), (; wC = ntuple(_ -> NaN, 22)),
+            (; C = ntuple(_ -> -1.0, 22)), (; sw_wC = ntuple(_ -> 3, 22)), (; wC = ntuple(_ -> NaN, 22)),
             (; stocoef = -1), (; tod_ref = 25), (; P_ref = 0), (; qcbl_ref = -0.1)
         )
         for kw in invalid

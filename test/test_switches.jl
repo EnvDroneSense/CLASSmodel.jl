@@ -101,6 +101,9 @@
         modes = ntuple(i -> i == 1 ? 1 : 0, 22)
         sine = run(; sw_wC = modes, wC = ntuple(_ -> 0.1, 22))
         @test sine.Inert[2] - sine.Inert[1] ≈ 60 * 0.1 * sin(pi * 60 / 43200) / sine.h[1]
+        sun = run(; sw_wC = ntuple(i -> i == 1 ? 2 : 0, 22), wC = ntuple(_ -> 0.1, 22), tstart = 0, runtime = 86400)
+        noon = argmax(sun.Inert[2:end] .- sun.Inert[1:end-1])
+        @test sun.Inert[2] == sun.Inert[1] && 0.45 < noon / 1440 < 0.55   # zero at night, peak at noon
         jump = run(; S = 30, dS = 2, dC = ntuple(i -> i == 2 ? 2.0 : 0.0, 22))
         @test jump.O3 ≈ jump.S
     end
