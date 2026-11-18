@@ -16,7 +16,7 @@ these sections, in this order, and leaves out the empty ones:
 
 An entry outside "Changes to model results" leaves results unchanged.
 
-## [Unreleased]
+## [0.2.0] - 2026-11-18
 
 ### Breaking changes
 
@@ -53,6 +53,12 @@ An entry outside "Changes to model results" leaves results unchanged.
 - `input_info(name)`: title, unit, symbol and slider range of each `ModelInput` field.
 - `variable_info(name)`: title, unit and symbol of each output variable.
 - `mixed_layer_profile(input, out, i)`: theta and q profiles of the mixed layer at output row `i`.
+- `run_model` and `init_model` take a `plant` keyword: an `AGsParameters` that replaces the
+  preset of `c3c4`.
+
+### Tools and tests
+
+- CompatHelper installs Julia before it runs. The daily run failed with "julia: command not found".
 
 ## [0.1.0] - 2026-11-10
 

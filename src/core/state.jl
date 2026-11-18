@@ -193,13 +193,15 @@ mutable struct ModelState{T <: Real}
 end
 
 """
-    init_model(input; constants = PhysicalConstants{T}()) -> ModelState
+    init_model(input; constants = PhysicalConstants{T}(), plant = AGsParameters{T}(input.c3c4))
+        -> ModelState
 
-Build the initial state from `input` and compute the initial diagnostics.
+Build the initial state from `input` and compute the initial diagnostics. `plant` holds the
+A-Gs parameters; the default is the preset of `input.c3c4`.
 """
 function init_model(x::ModelInput{T};
-        constants::PhysicalConstants{T} = PhysicalConstants{T}()) where {T}
-    plant = AGsParameters{T}(x.c3c4 == :c3 ? C3() : C4())
+        constants::PhysicalConstants{T} = PhysicalConstants{T}(),
+        plant::AGsParameters{T} = AGsParameters{T}(x.c3c4 == :c3 ? C3() : C4())) where {T}
     s = ModelState{T}(
         x, constants, plant,
         MixedLayerState{T}(;

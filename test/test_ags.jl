@@ -22,6 +22,12 @@ using CLASSmodel: E1
     @test out.wCO2 ≈ out.wCO2A + out.wCO2R
     @test all(c4.wCO2A .< 0) && c4.wCO2A != out.wCO2A
 
+    # the plant keyword replaces the preset of c3c4
+    inp = ModelInput(;
+        runtime = 600, sw_rad = true, sw_sl = true, sw_ls = true, ls_type = :ags)
+    @test run_model(inp; plant = AGsParameters(C3())).wCO2A == out.wCO2A
+    @test run_model(inp; plant = AGsParameters(C4())).wCO2A == c4.wCO2A
+
     # a vapour pressure deficit above f0/ad has no valid ci
     @test_throws r"f0/ad" ags(
         c3c4 = :c4, q = 0.002, theta = 310, Ts = 310, Tsoil = 310, T2 = 310)
