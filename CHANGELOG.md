@@ -59,6 +59,8 @@ An entry outside "Changes to model results" leaves results unchanged.
 ### Tools and tests
 
 - CompatHelper installs Julia before it runs. The daily run failed with "julia: command not found".
+- `[compat]` entries for the test and docs environments (Aqua, JET, Documenter, CLASSmodel). The CI
+  actions `checkout`, `julia-actions/cache` and `codecov-action` move to v7, v3 and v7.
 
 ## [0.1.0] - 2026-11-10
 
