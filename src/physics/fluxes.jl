@@ -1,0 +1,85 @@
+# Prescribed surface fluxes: a number, or a shape that gives the flux as a function of time.
+
+"""
+    FluxShape
+
+A surface flux that changes in time. `wtheta`, `wq`, `wCO2` and each entry of `wC` take a
+number (constant flux) or one of `Sine`, `Cosine`, `Block`, `Table`, `Sun`, `Deposition`.
+A new shape needs one method `flux(shape, x::ModelInput, t, c)`, with `t` in seconds from
+the start of the run and `c` the mixed-layer value of the quantity.
+"""
+abstract type FluxShape end
+
+"`amplitude * sin(pi (t - start) / period)` between `start` and `start + period` [s], else zero."
+struct Sine{T <: Real} <: FluxShape
+    amplitude::T
+    period::T
+    start::T
+end
+
+"`amplitude / 2 * (1 - cos(2 pi (t - start) / period))` between `start` and `start + period`."
+struct Cosine{T <: Real} <: FluxShape
+    amplitude::T
+    period::T
+    start::T
+end
+
+"`amplitude` between `start` and `start + period` [s], else zero."
+struct Block{T <: Real} <: FluxShape
+    amplitude::T
+    period::T
+    start::T
+end
+
+"Values every `interval` seconds from the start of the run, with linear interpolation."
+struct Table{T <: Real} <: FluxShape
+    values::Vector{T}
+    interval::Float64
+end
+
+"`amplitude` times the solar elevation divided by its noon value; zero at night."
+struct Sun{T <: Real} <: FluxShape
+    amplitude::T
+end
+
+"Dry deposition: the flux is `-vd * c` with the deposition velocity `vd` [m s-1]."
+struct Deposition{T <: Real} <: FluxShape
+    vd::T
+end
+
+for S in (:Sine, :Cosine, :Block)
+    @eval $S(amplitude; period = 43200, start = 0) = $S(promote(float(amplitude), period, start)...)
+end
+Table(values; interval = 3600) = Table(float.(collect(values)), float(interval))
+
+# The value of a flux field of an input with number type `T`: a number becomes a `T`.
+fluxvalue(::Type{T}, v::Real) where {T} = T(v)
+fluxvalue(::Type{T}, v::FluxShape) where {T} = v
+fluxvalue(::Type{T}, v::Tuple) where {T} = map(w -> fluxvalue(T, w), v)
+
+# Fraction of the window that has passed, or nothing outside the window.
+function window(f, t)
+    p = (t - f.start) / f.period
+    return 0 <= p <= 1 ? p : nothing
+end
+
+flux(v::Real, x, t, c) = v
+function flux(f::Sine, x, t, c)
+    window(f, t) === nothing && return zero(c)
+    return f.amplitude * sin(pi / f.period * (t - f.start))
+end
+function flux(f::Cosine, x, t, c)
+    p = window(f, t)
+    return p === nothing ? zero(c) : f.amplitude / 2 * (1 - cospi(2p))
+end
+flux(f::Block, x, t, c) = window(f, t) === nothing ? zero(c) : oftype(c, f.amplitude)
+function flux(f::Table, x, t, c)
+    i = floor(Int, t / f.interval) + 1
+    i >= length(f.values) && return oftype(c, f.values[end])
+    p = t / f.interval - (i - 1)
+    return oftype(c, f.values[i] + p * (f.values[i + 1] - f.values[i]))
+end
+function flux(f::Sun, x, t, c)
+    return f.amplitude * max(solar_elevation(x, t + x.tstart * 3600), 0) / solar_elevation_max(x)
+end
+flux(f::Deposition, x, t, c) = -f.vd * c

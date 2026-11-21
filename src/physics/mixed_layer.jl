@@ -3,24 +3,22 @@
 """
     prescribed_fluxes!(s::ModelState)
 
-Set the prescribed surface fluxes. Without `sw_ls`, `sw_wtheta` and `sw_wq` give the heat
-and moisture fluxes a half sine. The species flux mode `sw_wC` is 1 for the same sine and 2
-for the solar elevation divided by its noon value. As in the C++ model, a step uses the flux
-at its end and the sine is not clipped.
+Set the prescribed surface fluxes of the step from the inputs `wtheta`, `wq`, `wCO2` and `wC`
+(a number or a [`FluxShape`](@ref)). A step uses the flux at its end. With `sw_ls` the land
+surface sets the heat and moisture fluxes, and A-gs the CO2 flux.
 """
 function prescribed_fluxes!(s::ModelState)
     x, ml, sp = s.input, s.mixed_layer, s.species
-    sine = sin(pi / x.sinperiod * (s.t + 1) * x.dt)
-    sun = any(==(2), x.sw_wC) ?
-          max(solar_elevation(x, utc_seconds(x, s.t + 1)), 0) / solar_elevation_max(x) :
-          zero(sine)
+    t = (s.t + 1) * x.dt
     if !x.sw_ls
-        x.sw_wtheta && (ml.wtheta = x.wtheta * sine)
-        x.sw_wq && (ml.wq = x.wq * sine)
+        ml.wtheta = flux(x.wtheta, x, t, ml.theta)
+        ml.wq = flux(x.wq, x, t, ml.q)
     end
-    for i in 1:NSPECIES
-        x.sw_wC[i] == 1 && (sp.wC[i] = x.wC[i] * sine)
-        x.sw_wC[i] == 2 && (sp.wC[i] = x.wC[i] * sun)
+    if !(x.sw_ls && !x.sw_sea && x.ls_type == :ags)
+        ml.wCO2 = flux(x.wCO2, x, t, ml.CO2) * mg_to_ppm(s.constants)
+    end
+    for i in eachindex(sp.wC)
+        sp.wC[i] = flux(x.wC[i], x, t, sp.C[i])
     end
     return s
 end

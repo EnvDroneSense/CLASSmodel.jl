@@ -11,10 +11,10 @@
         jump = run(; CO2 = 30, dCO2 = 2, dC = one_species(2, 2.0))
         @test jump.O3 ≈ jump.CO2
         # flux mode 1 follows the sine, mode 2 the sun: zero at night, peak at noon
-        sine = run(; sw_wC = one_species(1, 1), wC = ntuple(_ -> 0.1, 22))
+        only(shape) = ntuple(j -> j == 1 ? shape : 0.0, 22)
+        sine = run(; wC = only(Sine(0.1)))
         @test sine.Inert[2] - sine.Inert[1] ≈ 60 * 0.1 * sin(pi * 60 / 43200) / sine.h[1]
-        sun = run(; sw_wC = one_species(1, 2), wC = ntuple(_ -> 0.1, 22), tstart = 0,
-            runtime = 86400)
+        sun = run(; wC = only(Sun(0.1)), tstart = 0, runtime = 86400)
         noon = argmax(diff(sun.Inert))
         @test sun.Inert[2] == sun.Inert[1] && 0.45 < noon / 1440 < 0.55
     end

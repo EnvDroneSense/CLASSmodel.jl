@@ -63,15 +63,15 @@ end
     end
 
     @testset "diurnal cycle of the fluxes" begin
-        # half sine, taken at the end of each step: the input value at sinperiod / 2, negative after
-        x = (; runtime = 2500, sinperiod = 1200, sw_wtheta = true, sw_wq = true)
+        # half sine, taken at the end of each step: the amplitude at period / 2, zero after
+        x = (; runtime = 2500, wtheta = Sine(0.1; period = 1200), wq = Sine(1e-4; period = 1200))
         out = run(; x...)
         @test out.wtheta[1] ≈ 0.1 * sin(pi * 60 / 1200)
         @test out.wtheta[10] ≈ 0.1 && out.wq[10] ≈ 1e-4        # end of the step at 600 s
-        @test out.wtheta[31] < 0
-        @test run(; x..., sw_wq = false).wq == fill(1e-4, 41)  # each switch acts alone
+        @test out.wtheta[31] == 0
+        @test run(; x..., wq = 1e-4).wq == fill(1e-4, 41)      # each flux has its own shape
         # the land surface sets the fluxes itself
         ls = (; sw_sl = true, sw_ls = true)
-        @test isequal(run(; ls..., x...).wtheta, run(; ls..., runtime = x.runtime).wtheta)
+        @test_throws ArgumentError run(; ls..., x...)
     end
 end

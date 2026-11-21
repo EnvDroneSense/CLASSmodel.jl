@@ -104,9 +104,8 @@ fluxes. The input is checked when it is constructed (see [`validate`](@ref)).
 | time | `runtime`, `dt` |
 | switches | `sw_ml`, `sw_shearwe`, `sw_fixft`, `sw_wind`, `sw_sl`, `sw_rad`, `sw_ls`, `sw_sea`, `sw_cu`, `sw_curad` |
 | mixed layer | `h`, `Ps`, `divU`, `fc`, `beta` |
-| diurnal cycle | `sinperiod`, `sw_wtheta`, `sw_wq` |
 | heat, moisture, CO2 | `theta`, `dtheta`, `gammatheta`, `advtheta`, `wtheta`, `q`, `dq`, `gammaq`, `advq`, `wq`, `CO2`, `dCO2`, `gammaCO2`, `advCO2`, `wCO2` |
-| chemical species | `C`, `dC`, `gammaC`, `advC`, `wC`, `sw_wC` (one value for each of the 22 species) |
+| chemical species | `C`, `dC`, `gammaC`, `advC`, `wC` (one value for each of the 22 species) |
 | chemistry | `sw_chem`, `sw_chem_constant`, `sw_photo_constant`, `sw_reactions` (one switch for each of the 28 reactions), `tod_ref`, `Tcbl_ref`, `Tft_ref`, `qcbl_ref`, `qft_ref`, `P_ref`, `stocoef` |
 | wind | `u`, `du`, `gammau`, `advu`, `v`, `dv`, `gammav`, `advv` |
 | surface layer | `ustar`, `z0m`, `z0h` |
@@ -116,12 +115,12 @@ fluxes. The input is checked when it is constructed (see [`validate`](@ref)).
 
 Notes:
 - `ls_type` is `:js` (Jarvis-Stewart) or `:ags` (A-Gs); `c3c4` is `:c3` or `:c4`.
+- `wtheta`, `wq`, `wCO2` and each entry of `wC` take a number or a [`FluxShape`](@ref), for
+  example `wtheta = Sine(0.1; period = 43200)`.
 - `wCO2` is in mg CO2 m-2 s-1 (converted with `mair / (rho * mco2)`).
 - `c_beta = 0` is a linear water stress response.
 - The 22 species of `CLASSmodel.SPECIES` are in ppb. `Inert` takes part in no reaction: it is the
   passive scalar. Without `sw_chem` all species are passive.
-  `sw_wC` is the flux mode of each: 0 constant `wC`, 1 `wC * sin(pi t / sinperiod)`,
-  2 `wC` times the solar elevation divided by its noon value (zero at night).
 - `sw_chem` runs the reactions of `sw_reactions` (see `chemistry!`). `sw_chem_constant`
   takes pressure, temperature and humidity from the reference state (`P_ref`, `Tcbl_ref`, `Tft_ref`,
   `qcbl_ref`, `qft_ref`: mixed layer and free troposphere) and not from the mixed layer.
@@ -148,11 +147,6 @@ Base.@kwdef struct ModelInput{T <: Real}
     sw_curad::Bool = false      # cloud cover of the radiation follows the cumulus, cc = 2 ac
     sw_chem::Bool = false       # chemical reactions of the species
 
-    # diurnal cycle of the prescribed surface fluxes (only without sw_ls)
-    sinperiod::T = 43200        # half period of the sine of the fluxes [s]
-    sw_wtheta::Bool = false     # heat flux follows wtheta * sin(pi t / sinperiod)
-    sw_wq::Bool = false         # moisture flux follows wq * sin(pi t / sinperiod)
-
     # mixed layer
     h::T = 200                  # initial ABL height [m]
     Ps::T = 101300              # surface pressure [Pa]
@@ -165,29 +159,28 @@ Base.@kwdef struct ModelInput{T <: Real}
     dtheta::T = 1               # initial temperature jump at h [K]
     gammatheta::T = 0.006       # free atmosphere potential temperature lapse rate [K m-1]
     advtheta::T = 0             # advection of heat [K s-1]
-    wtheta::T = 0.1             # surface kinematic heat flux [K m s-1]
+    wtheta::Union{T, FluxShape} = 0.1    # surface kinematic heat flux [K m s-1]
 
     # moisture
     q::T = 0.008                # initial mixed-layer specific humidity [kg kg-1]
     dq::T = -0.001              # initial specific humidity jump at h [kg kg-1]
     gammaq::T = 0               # free atmosphere specific humidity lapse rate [kg kg-1 m-1]
     advq::T = 0                 # advection of moisture [kg kg-1 s-1]
-    wq::T = 0.1e-3              # surface kinematic moisture flux [kg kg-1 m s-1]
+    wq::Union{T, FluxShape} = 0.1e-3     # surface kinematic moisture flux [kg kg-1 m s-1]
 
     # CO2
     CO2::T = 422                # initial mixed-layer CO2 [ppm]
     dCO2::T = -44               # initial CO2 jump at h [ppm]
     gammaCO2::T = 0             # free atmosphere CO2 lapse rate [ppm m-1]
     advCO2::T = 0               # advection of CO2 [ppm s-1]
-    wCO2::T = 0                 # surface kinematic CO2 flux [mg CO2 m-2 s-1, see notes]
+    wCO2::Union{T, FluxShape} = 0        # surface kinematic CO2 flux [mg CO2 m-2 s-1, see notes]
 
     # chemical species, in the order of SPECIES
     C::NTuple{NSPECIES, T} = SPECIES_C0                       # initial mixing ratio [ppb]
     dC::NTuple{NSPECIES, T} = SPECIES_ZERO                    # initial jump at h [ppb]
     gammaC::NTuple{NSPECIES, T} = SPECIES_ZERO                # lapse rate above h [ppb m-1]
     advC::NTuple{NSPECIES, T} = SPECIES_ZERO                  # advection [ppb s-1]
-    wC::NTuple{NSPECIES, T} = SPECIES_WC0                     # surface flux [ppb m s-1]
-    sw_wC::NTuple{NSPECIES, Int} = ntuple(_ -> 0, NSPECIES)   # flux mode: 0 constant, 1 sine, 2 sun
+    wC::NTuple{NSPECIES, Union{T, FluxShape}} = SPECIES_WC0   # surface flux [ppb m s-1]
 
     # chemistry, used with sw_chem
     sw_chem_constant::Bool = true   # rates at the reference state instead of the mixed layer
@@ -259,7 +252,8 @@ Base.@kwdef struct ModelInput{T <: Real}
     dz_h::T = 150               # transition layer thickness [m]
 
     function ModelInput{T}(args...) where {T <: Real}
-        input = new{T}(args...)
+        input = new{T}((n in (:wtheta, :wq, :wCO2, :wC) ? fluxvalue(T, v) : v
+        for (n, v) in zip(fieldnames(ModelInput), args))...)
         validate(input)
         return input
     end
@@ -273,14 +267,15 @@ Throw an `ArgumentError` if `input` cannot be run. Called by the
 [`ModelInput`](@ref) constructor. Checks:
 
 - every numeric field is finite
-- positive time step, run time, `sinperiod`, `h`, `Ps`, `z0m`, `z0h`
+- positive time step, run time, `h`, `Ps`, `z0m`, `z0h`
 - `dtheta != 0` when the mixed layer or the cumulus scheme is on
 - `0 <= cc <= 1`, `0 <= cveg <= 1`, `0 <= c_beta <= 1`
-- `C >= 0` and `sw_wC` is 0, 1 or 2 for every species
+- `C >= 0` for every species
 - `0 <= tod_ref <= 24`, `P_ref`, `Tcbl_ref`, `Tft_ref` > 0, `qcbl_ref`, `qft_ref`, `stocoef` >= 0
 - `ls_type` and `c3c4` have a known value
 - with `sw_ls` and not `sw_sea`: `LAI`, `Wmax`, `wg` > 0, `0 < w2 < wsat` and `wwilt < wfc <= wsat`
 - with `sw_cu`: `dz_h > 0`
+- with `sw_ls`: `wtheta` and `wq` are numbers (the first guess of the fluxes), not shapes
 - A-Gs (`sw_ls` without `sw_sea`, `ls_type = :ags`) needs `sw_rad`, because it uses the
   incoming shortwave radiation
 """
@@ -300,8 +295,7 @@ function validate(x::ModelInput)
         end
     end
     check(all(>=(0), x.C), :C, ">= 0")
-    check(all(in((0, 1, 2)), x.sw_wC), :sw_wC, "0, 1 or 2")
-    foreach(positive, (:runtime, :dt, :sinperiod, :h, :Ps, :P_ref, :Tcbl_ref, :Tft_ref))
+    foreach(positive, (:runtime, :dt, :h, :Ps, :P_ref, :Tcbl_ref, :Tft_ref))
     foreach(nonnegative, (:qcbl_ref, :qft_ref, :stocoef))
     check(0 <= x.tod_ref <= 24, :tod_ref, "in [0, 24]")
     foreach(positive, (:z0m, :z0h))
@@ -312,6 +306,8 @@ function validate(x::ModelInput)
     x.ls_type in (:js, :ags) ||
         throw(ArgumentError("ls_type must be :js or :ags, got :$(x.ls_type)"))
     x.c3c4 in (:c3, :c4) || throw(ArgumentError("c3c4 must be :c3 or :c4, got :$(x.c3c4)"))
+    x.sw_ls && (x.wtheta isa FluxShape || x.wq isa FluxShape) && throw(ArgumentError(
+        "with sw_ls the land surface sets the fluxes: wtheta and wq must be numbers"))
     if x.sw_ls && !x.sw_sea
         foreach(positive, (:LAI, :Wmax, :wg))
         0 < x.w2 < x.wsat || throw(ArgumentError("need 0 < w2 < wsat"))

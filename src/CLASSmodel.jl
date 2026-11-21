@@ -30,7 +30,9 @@ module CLASSmodel
 export ModelInput, PhysicalConstants, AGsParameters, PlantType, C3, C4, validate
 export ModelOutput, run_model, mixed_layer_profile, variable_info, input_info
 export ModelState, init_model, step!
+export FluxShape, Sine, Cosine, Block, Table, Sun, Deposition
 
+include("physics/fluxes.jl")
 include("io/input.jl")
 include("io/input_info.jl")
 include("physics/reactions.jl")

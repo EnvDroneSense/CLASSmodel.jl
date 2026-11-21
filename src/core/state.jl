@@ -149,7 +149,7 @@ Base.@kwdef mutable struct SpeciesState{T <: Real}
 end
 
 function SpeciesState(x::ModelInput{T}) where {T}
-    return SpeciesState{T}(collect(x.C), collect(x.dC), collect(x.wC), zeros(T, NSPECIES),
+    return SpeciesState{T}(collect(x.C), collect(x.dC), zeros(T, NSPECIES), zeros(T, NSPECIES),
         zeros(T, NSPECIES), zeros(T, NSPECIES), zeros(T, NSPECIES))
 end
 
@@ -205,9 +205,9 @@ function init_model(x::ModelInput{T};
     s = ModelState{T}(
         x, constants, plant,
         MixedLayerState{T}(;
-            h = x.h, theta = x.theta, dtheta = x.dtheta, wtheta = x.wtheta,
-            q = x.q, dq = x.dq, wq = x.wq, CO2 = x.CO2, dCO2 = x.dCO2,
-            wCO2 = x.wCO2 * mg_to_ppm(constants)),
+            h = x.h, theta = x.theta, dtheta = x.dtheta, wtheta = flux(x.wtheta, x, x.dt, x.theta),
+            q = x.q, dq = x.dq, wq = flux(x.wq, x, x.dt, x.q), CO2 = x.CO2, dCO2 = x.dCO2,
+            wCO2 = flux(x.wCO2, x, x.dt, x.CO2) * mg_to_ppm(constants)),
         WindState{T}(; u = x.u, du = x.du, v = x.v, dv = x.dv),
         RadiationState{T}(; Q = x.Q, cc = x.cc),
         SurfaceLayerState{T}(; ustar = x.ustar, thetasurf = x.theta),

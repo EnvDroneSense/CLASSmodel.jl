@@ -16,6 +16,19 @@ these sections, in this order, and leaves out the empty ones:
 
 An entry outside "Changes to model results" leaves results unchanged.
 
+## [Unreleased]
+
+### Breaking changes
+
+- The inputs `sinperiod`, `sw_wtheta`, `sw_wq` and `sw_wC` are removed. Give `wtheta`, `wq`,
+  `wCO2` or an entry of `wC` a `FluxShape` instead: `sw_wtheta = true` with `sinperiod = P`
+  becomes `wtheta = Sine(wtheta; period = P)`, and `sw_wC` 2 becomes `Sun(wC)`.
+
+### Features
+
+- Surface flux shapes `Sine`, `Cosine`, `Block`, `Table`, `Sun` and `Deposition` for `wtheta`,
+  `wq`, `wCO2` and each entry of `wC`. `Sine` is zero outside its window.
+
 ## [0.2.0] - 2026-11-18
 
 ### Breaking changes
