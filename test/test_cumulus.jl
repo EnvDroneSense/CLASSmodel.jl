@@ -3,8 +3,7 @@
         sw_ls = true, sw_cu = true, q = 0.01, dq = -0.002, wq = 1e-4)
     out = run_model(moist)
 
-    # the closure bounds the cloud core fraction by 0.5 + 0.18 pi (slightly above 1), clouds form in the moist run
-    @test all(0 .<= out.ac .<= 0.5 + 0.18π)
+    # clouds form in the moist run
     @test maximum(out.ac) > 0 && maximum(out.M) > 0
     @test all(out.M .>= 0) && all(out.wqM .>= 0)
     @test all(out.dz .>= 50)

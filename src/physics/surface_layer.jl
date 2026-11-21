@@ -35,10 +35,8 @@ effective_wind(s::ModelState) = sqrt(s.wind.u^2 + s.wind.v^2 + s.mixed_layer.wst
 """
     ribtol(Rib, zsl, z0m, z0h)
 
-Obukhov length [m] for the bulk Richardson number `Rib` at height `zsl`, found by Newton
-iteration (central difference for the derivative) from `L = ±1`. The iteration stops when
-`L` changes by less than 1 mm, when `|L|` exceeds 1e15 (neutral), or after 100 iterations
-(with a warning).
+Obukhov length [m] for the bulk Richardson number `Rib` at height `zsl`, by Newton iteration
+from `L = 1` or `L = -1` (the sign of `Rib`). It stops at a 1 mm change, `|L| > 1e15` (neutral) or 100 iterations (warns).
 """
 function ribtol(Rib, zsl, z0m, z0h)
     L, L0 = Rib > 0 ? (one(Rib), 2 * one(Rib)) : (-one(Rib), -2 * one(Rib))
@@ -92,7 +90,6 @@ function surface_layer!(s::ModelState)
     sl.uw = -sl.Cm * ueff * wind.u
     sl.vw = -sl.Cm * ueff * wind.v
 
-    # 2 m diagnostics
     fh2 = profile(psih, 2, x.z0h, sl.L)
     fm2 = profile(psim, 2, x.z0m, sl.L)
     sl.T2m = sl.thetasurf - ml.wtheta / sl.ustar / c.k * fh2

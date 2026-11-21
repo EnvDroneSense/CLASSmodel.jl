@@ -21,9 +21,6 @@ const INPUT_INFO = (
     sw_cu = flag("Cumulus parameterization", "sw_cu"),
     sw_curad = flag("Cumulus cloud cover in radiation", "sw_curad"),
     sw_chem = flag("Chemical reactions", "sw_chem"),
-    sinperiod = num("Half period of the flux cycle", "s", "T_sin", 3600, 86400),
-    sw_wtheta = flag("Diurnal cycle of the heat flux", "sw_wtheta"),
-    sw_wq = flag("Diurnal cycle of the moisture flux", "sw_wq"),
     h = num("Initial boundary-layer height", "m", "h", 50, 3000),
     Ps = num("Surface pressure", "Pa", "Pₛ", 90000, 105000),
     divU = num("Large-scale wind divergence", "s-1", "div U", 0, 1e-5),
@@ -44,15 +41,15 @@ const INPUT_INFO = (
     gammaCO2 = num("CO2 lapse rate", "ppm m-1", "γCO2", -0.1, 0.1),
     advCO2 = num("CO2 advection", "ppm s-1", "advCO2", -0.01, 0.01),
     wCO2 = num("Surface CO2 flux", "mg CO2 m-2 s-1", "w'CO2'ₛ", -0.5, 0.5),
+    species = (; title = "Chemical species", unit = "-", symbol = "species"),
     C = num("Initial species mixing ratio", "ppb", "C", 0, 1e9),
     dC = num("Initial species jump", "ppb", "ΔC", -100, 100),
     gammaC = num("Species lapse rate", "ppb m-1", "γC", -0.1, 0.1),
     advC = num("Species advection", "ppb s-1", "advC", -0.01, 0.01),
     wC = num("Surface species flux", "ppb m s-1", "w'C'ₛ", -10, 10),
-    sw_wC = choice("Species flux mode", "sw_wC", (0, 1, 2)),
     sw_chem_constant = flag("Chemistry at the reference state", "sw_chem_constant"),
     sw_photo_constant = flag("Photolysis at the reference time", "sw_photo_constant"),
-    sw_reactions = choice("Reaction switches", "sw_reactions", (false, true)),
+    reactions = (; title = "Reactions of the chemistry", unit = "-", symbol = "reactions"),
     tod_ref = num("Reference time of the day", "h UTC", "tod_ref", 0, 24),
     Tcbl_ref = num("Reference temperature of the mixed layer", "K", "Tcbl_ref", 250, 320),
     Tft_ref = num(
@@ -61,7 +58,6 @@ const INPUT_INFO = (
     qft_ref = num(
         "Reference humidity of the free troposphere", "kg kg-1", "qft_ref", 0, 0.03),
     P_ref = num("Reference pressure", "Pa", "P_ref", 50000, 105000),
-    stocoef = num("OH yield of RO2 + HO2", "-", "stocoef", 0, 10),
     u = num("Initial u wind", "m s-1", "u", -20, 20),
     du = num("Initial u wind jump", "m s-1", "Δu", -20, 20),
     gammau = num("u wind lapse rate", "s-1", "γu", -0.01, 0.01),
@@ -114,8 +110,7 @@ const INPUT_INFO = (
 
 Title, unit and symbol of the `ModelInput` field `name`, with a slider range `min` to `max`
 (not a validity rule, see [`validate`](@ref)). A switch has `min = max = nothing`, a `Symbol`
-or mode field has `options`. For a tuple field (`C`, `sw_reactions`, ...) the entry is for
-one value.
+field has `options`. For a vector field (`C`, `wC`, ...) the entry is for one value.
 """
 function input_info(name::Symbol)
     haskey(INPUT_INFO, name) || throw(ArgumentError("unknown input field :$name"))

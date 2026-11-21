@@ -1,23 +1,15 @@
 # Output table: names, type, storage of a step and the mixed-layer profile.
 
-# Names of the output variables, in the order of the columns.
-const OUTPUT_NAMES = (
-    :t, :h, :theta, :thetav, :dtheta, :dthetav, :wtheta, :wthetav, :wthetae, :wthetave, :q,
-    :dq, :wq, :wqe, :wqM, :qsat, :e, :esat, :CO2, :dCO2, :wCO2, :wCO2A, :wCO2R, :wCO2e,
-    :wCO2M, :u, :du, :uw, :v, :dv, :vw, :T2m, :q2m, :u2m, :v2m, :e2m, :esat2m, :thetasurf,
-    :thetavsurf, :qsurf, :ustar, :z0m, :z0h, :Cm, :Cs, :L, :Rib, :Swin, :Swout, :Lwin,
-    :Lwout, :Q, :cc, :ra, :rs, :H, :LE, :LEliq, :LEveg, :LEsoil, :LEpot, :LEref, :G, :zlcl,
-    :RH_h, :ac, :M, :dz, :phi, :k_r05, SPECIES...
-)
-
 """
     ModelOutput{T}
 
 Time series of one run: a `NamedTuple` with one vector per variable (a table in the sense
-of Tables.jl). `t` is the time in hours since midnight of the start day, so it exceeds 24
-in runs longer than a day. `wCO2*` are in mg CO2 m-2 s-1.
+of Tables.jl). The species columns come last, one mixing ratio [ppb] for each name in
+`input.species`, so the names depend on the input. `t` is the time in hours since midnight
+of the start day, so it exceeds 24 in runs longer than a day. `wCO2*` are in mg CO2 m-2 s-1.
+See [`variable_info`](@ref) for the title and unit of a column.
 """
-const ModelOutput{T} = NamedTuple{OUTPUT_NAMES, NTuple{length(OUTPUT_NAMES), Vector{T}}}
+const ModelOutput{T} = NamedTuple{N, V} where {N, V <: Tuple{Vararg{Vector{T}}}}
 
 """
     mixed_layer_profile(input, out, i; ztop = 2 * out.h[i]) -> NamedTuple
@@ -31,16 +23,17 @@ function mixed_layer_profile(
     h = out.h[i]
     ztop > h || throw(ArgumentError("ztop must exceed the boundary-layer height $h"))
     theta, dtheta, q, dq = out.theta[i], out.dtheta[i], out.q[i], out.dq[i]
-    above = ztop - h
     return (
         z = [zero(h), h, h, ztop],
-        theta = [theta, theta, theta + dtheta, theta + dtheta + input.gammatheta * above],
-        q = [q, q, q + dq, q + dq + input.gammaq * above]
+        theta = [theta, theta, theta + dtheta, theta + dtheta + rise(input.gammatheta, h, ztop)],
+        q = [q, q, q + dq, q + dq + rise(input.gammaq, h, ztop)]
     )
 end
 
-function empty_output(::Type{T}, n::Integer) where {T}
-    ModelOutput{T}(ntuple(_ -> zeros(T, n), length(OUTPUT_NAMES)))
+# The names are only known at run time (the species), so the type of the result is too.
+function empty_output(::Type{T}, n::Integer, species) where {T}
+    names = Tuple([collect(keys(BASE_INFO)); species])
+    return NamedTuple{names}(ntuple(_ -> zeros(T, n), length(names)))
 end
 
 "Write the current state into row `s.t + 1` of `out`."
@@ -134,8 +127,9 @@ function store!(out::ModelOutput, s::ModelState)
     out.k_r05[i] = s.chemistry.k_r05
 
     cols = values(out)   # the species are the last columns
-    for k in 1:NSPECIES
-        cols[end - NSPECIES + k][i] = s.species.C[k]
+    n = length(s.species.C)
+    for k in 1:n
+        cols[end - n + k][i] = s.species.C[k]
     end
     return out
 end

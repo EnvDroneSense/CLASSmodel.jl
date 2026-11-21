@@ -62,16 +62,37 @@ end
         @test run(; sw_fixft = true).dtheta == run().dtheta   # no subsidence, no difference
     end
 
+    @testset "lapse rate in segments" begin
+        # one segment, or equal segments, is the constant lapse rate, bit for bit
+        @test run(; gammatheta = Segments([1000.0], [0.006, 0.006])).h == run().h
+        # the layer grows faster once it is above 250 m, where the air is less stable
+        out = run(; gammatheta = Segments([250.0], [0.006, 0.002]))
+        i = findfirst(>(250), out.h)
+        @test out.h[1:i] == run().h[1:i] && out.h[end] > run().h[end]
+        @test_throws ArgumentError Segments([2.0, 1.0], [1.0, 2.0, 3.0])
+        p = mixed_layer_profile(ModelInput(; gammatheta = Segments([300.0], [0.01, 0.0])), run(), 1; ztop = 400)
+        @test p.theta[end] ≈ 288 + 1 + 0.01 * 100
+    end
+
+    @testset "encroachment" begin
+        # dry air without an inversion: h^2 = h0^2 + 2 wtheta t / gammatheta
+        x = ModelInput(; runtime = 3600, dt = 1, beta = 0, dtheta = 0, dq = 0, wq = 0)
+        out = run_model(x)
+        @test out.h[end] ≈ sqrt(200^2 + 2 * 0.1 * 3599 / 0.006) rtol = 1e-3
+        @test maximum(abs, out.dtheta) < 1e-9
+        @test_throws ArgumentError ModelInput(; beta = 0, dtheta = 0, dq = 0, sw_cu = true)
+    end
+
     @testset "diurnal cycle of the fluxes" begin
-        # half sine, taken at the end of each step: the input value at sinperiod / 2, negative after
-        x = (; runtime = 2500, sinperiod = 1200, sw_wtheta = true, sw_wq = true)
+        # half sine, taken at the end of each step: the amplitude at period / 2, zero after
+        x = (; runtime = 2500, wtheta = Sine(0.1; period = 1200), wq = Sine(1e-4; period = 1200))
         out = run(; x...)
         @test out.wtheta[1] ≈ 0.1 * sin(pi * 60 / 1200)
         @test out.wtheta[10] ≈ 0.1 && out.wq[10] ≈ 1e-4        # end of the step at 600 s
-        @test out.wtheta[31] < 0
-        @test run(; x..., sw_wq = false).wq == fill(1e-4, 41)  # each switch acts alone
+        @test out.wtheta[31] == 0
+        @test run(; x..., wq = 1e-4).wq == fill(1e-4, 41)      # each flux has its own shape
         # the land surface sets the fluxes itself
         ls = (; sw_sl = true, sw_ls = true)
-        @test isequal(run(; ls..., x...).wtheta, run(; ls..., runtime = x.runtime).wtheta)
+        @test_throws ArgumentError run(; ls..., x...)
     end
 end

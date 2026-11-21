@@ -1,5 +1,8 @@
 # Land surface: surface energy balance with a skin temperature and a force-restore soil.
 
+# Field capacity above wilting point over the moisture above wilting point; huge when dry.
+water_ratio(x, w) = w > x.wwilt ? (x.wfc - x.wwilt) / (w - x.wwilt) : 1e8
+
 """
     jarvis_stewart!(s::ModelState)
 
@@ -13,8 +16,7 @@ function jarvis_stewart!(s::ModelState)
     Swin = s.radiation.Swin
     f1 = x.sw_rad ? 1 / min(1, (0.004 * Swin + 0.05) / (0.81 * (0.004 * Swin + 1))) :
          one(ml.theta)
-    f2 = x.w2 > x.wwilt ? (x.wfc - x.wwilt) / (x.w2 - x.wwilt) : 1e8
-    f2 = max(f2, 1)   # no reduction when w2 is above field capacity
+    f2 = max(water_ratio(x, x.w2), 1)   # no reduction when w2 is above field capacity
     f3 = 1 / exp(-x.gD * (ml.esat - ml.e) / 100)
     f4 = 1 / (1 - 0.0016 * (298 - ml.theta)^2)
 
@@ -34,14 +36,8 @@ function land_surface!(s::ModelState)
     ueff = effective_wind(s)
     sl.ra = x.sw_sl ? (sl.Cs * ueff)^-1 : ueff / max(1e-3, sl.ustar)^2
 
-    # thermodynamic variables at the mixed-layer temperature
-    ml.esat = esat(ml.theta)
-    ml.qsat = qsat(ml.theta, x.Ps)
-    ml.e = ml.q * x.Ps / ε
-
     x.sw_sea ? open_water!(s) : land!(s)
 
-    # kinematic surface fluxes for the mixed layer
     ml.wtheta = ls.H / (c.rho * c.cp)
     ml.wq = ls.LE / (c.rho * c.Lv)
     return nothing
@@ -68,9 +64,7 @@ function land!(s::ModelState)
 
     x.ls_type == :js ? jarvis_stewart!(s) : ags!(s)
 
-    # soil resistance from the top-layer moisture
-    f2 = ls.wg > x.wwilt ? (x.wfc - x.wwilt) / (ls.wg - x.wwilt) : 1e8
-    rssoil = x.rssoilmin * f2
+    rssoil = x.rssoilmin * water_ratio(x, ls.wg)
 
     cliq = min(1, ls.Wl / (x.LAI * x.Wmax))   # wet fraction of the vegetation
     ra = sl.ra
@@ -81,7 +75,6 @@ function land!(s::ModelState)
     kliq = x.cveg * cliq * rho * Lv / ra
     kLE = kveg + ksoil + kliq
 
-    # skin temperature from the linearised energy balance
     ls.Ts = (s.radiation.Q + rho * cp / ra * ml.theta +
              kLE * (dqsatdT * ml.theta - ml.qsat + ml.q) +
              x.Lambda * ls.Tsoil) / (rho * cp / ra + kLE * dqsatdT + x.Lambda)
@@ -112,7 +105,7 @@ function land!(s::ModelState)
     return nothing
 end
 
-"Forward Euler step of the soil temperature, soil moisture and wet-leaf water layer."
+"Forward Euler step of the soil temperature, soil moisture and wet-leaf water layer; none with `sw_sea`."
 function integrate_land_surface!(s::ModelState)
     ls, dt = s.land_surface, s.input.dt
     s.input.sw_sea && return nothing

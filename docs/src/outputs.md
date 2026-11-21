@@ -10,11 +10,6 @@ The output is a `NamedTuple` of vectors, so it is also a table in the sense of
 [Tables.jl](https://tables.juliadata.org): `DataFrame(out)` and `CSV.write("run.csv", out)` work
 once those packages are loaded. `out.t` is the time in hours since midnight of the start day.
 
-## Units
-
-`wCO2` and the fluxes `wCO2*` in the output are in mg CO2 m-2 s-1. The mixed-layer
-concentrations `CO2` and `dCO2` are in ppm. The 22 species are in ppb.
-
 ## Output information
 
 `variable_info(name)` returns the title, unit and symbol of an output variable.

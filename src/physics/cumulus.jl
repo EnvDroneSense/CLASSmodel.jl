@@ -32,7 +32,7 @@ function cumulus!(s::ModelState)
     cu.wqM = cu.M * sigma_q
 
     cu.wCO2M = cloud_flux(ml, cu, ml.wCO2e, cu.wCO2M, ml.dCO2)
-    for i in 1:NSPECIES
+    for i in eachindex(sp.C)
         sp.wCM[i] = cloud_flux(ml, cu, sp.wCe[i], sp.wCM[i], sp.dC[i])
     end
     return nothing

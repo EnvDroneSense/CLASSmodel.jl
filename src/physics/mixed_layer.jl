@@ -3,24 +3,23 @@
 """
     prescribed_fluxes!(s::ModelState)
 
-Set the prescribed surface fluxes. Without `sw_ls`, `sw_wtheta` and `sw_wq` give the heat
-and moisture fluxes a half sine. The species flux mode `sw_wC` is 1 for the same sine and 2
-for the solar elevation divided by its noon value. As in the C++ model, a step uses the flux
-at its end and the sine is not clipped.
+Set the prescribed surface fluxes of the step from the inputs `wtheta`, `wq`, `wCO2` and `wC`
+(a number or a [`FluxShape`](@ref)). A step uses the flux at its end. With `sw_ls` the land
+surface sets the heat and moisture fluxes, and A-Gs the CO2 flux.
 """
 function prescribed_fluxes!(s::ModelState)
     x, ml, sp = s.input, s.mixed_layer, s.species
-    sine = sin(pi / x.sinperiod * (s.t + 1) * x.dt)
-    sun = any(==(2), x.sw_wC) ?
-          max(solar_elevation(x, utc_seconds(x, s.t + 1)), 0) / solar_elevation_max(x) :
-          zero(sine)
+    t = (s.t + 1) * x.dt
     if !x.sw_ls
-        x.sw_wtheta && (ml.wtheta = x.wtheta * sine)
-        x.sw_wq && (ml.wq = x.wq * sine)
+        ml.wtheta = flux(x.wtheta, x, t, ml.theta)
+        ml.wq = flux(x.wq, x, t, ml.q)
     end
-    for i in 1:NSPECIES
-        x.sw_wC[i] == 1 && (sp.wC[i] = x.wC[i] * sine)
-        x.sw_wC[i] == 2 && (sp.wC[i] = x.wC[i] * sun)
+    if !(x.sw_ls && !x.sw_sea && x.ls_type == :ags)
+        f = mg_to_ppm(s.constants)   # the input flux is in mg CO2 m-2 s-1, the layer in ppm
+        ml.wCO2 = flux(x.wCO2, x, t, ml.CO2 / f) * f
+    end
+    for i in eachindex(sp.wC)
+        sp.wC[i] = flux(x.wC[i], x, t, sp.C[i])
     end
     return s
 end
@@ -28,12 +27,14 @@ end
 """
     statistics!(s::ModelState)
 
-Virtual temperatures, values at the top of the mixed layer and the lifting
-condensation level (LCL). The LCL is found by a fixed-point iteration: it restarts
-from `h` at the first step and otherwise continues from the previous value.
+Virtual temperatures, values at the top of the mixed layer and the lifting condensation level.
 """
 function statistics!(s::ModelState)
     x, c, ml = s.input, s.constants, s.mixed_layer
+
+    ml.esat = esat(ml.theta)
+    ml.qsat = qsat(ml.theta, x.Ps)
+    ml.e = ml.q * x.Ps / ε
 
     ml.thetav = ml.theta + VIRT * ml.theta * ml.q
     ml.wthetav = ml.wtheta + VIRT * ml.theta * ml.wq
@@ -61,7 +62,7 @@ function statistics!(s::ModelState)
         it += 1
     end
     ml.lcl = lcl
-    it == itmax && @warn "LCL calculation not converged" RHlcl lcl
+    (RHlcl <= 0.9999 || RHlcl >= 1.0001) && @warn "LCL calculation not converged" RHlcl lcl
     return s
 end
 
@@ -75,6 +76,9 @@ function prescribed_stress!(s::ModelState)
     return nothing
 end
 
+# Encroachment: a start without an inversion and without entrainment of the air above.
+encroachment(x::ModelInput) = x.beta == 0 && x.dtheta == 0 && x.dq == 0
+
 # Tendencies of a mixed-layer scalar and of its jump at h, from the surface, entrainment and
 # cloud fluxes, the advection, the lapse rate above h and the growth relative to it.
 function scalar_tendencies(flux, flux_e, flux_M, adv, gamma, h, wrel_ft)
@@ -85,8 +89,9 @@ end
 """
     mixed_layer!(s::ModelState)
 
-Entrainment, fluxes and tendencies of the mixed layer. Without the surface layer the
-momentum fluxes follow from `ustar` and the wind direction.
+Entrainment, fluxes and tendencies of the mixed layer, the species, the wind and the
+transition layer `dz_h`. With encroachment the jump is `gammatheta * h`. Without the surface
+layer the momentum fluxes follow from `ustar` and the wind direction.
 """
 function mixed_layer!(s::ModelState)
     x, c, ml, w, sl, cu = s.input, s.constants, s.mixed_layer, s.wind, s.surface_layer,
@@ -98,17 +103,17 @@ function mixed_layer!(s::ModelState)
     # vertical velocity that keeps the free troposphere fixed under subsidence
     ws_ft = x.sw_fixft ? ml.ws : zero(ml.ws)
 
-    ml.wf = x.dFz / (c.rho * c.cp * ml.dtheta)
-
-    if ml.wthetav > 0
-        ml.wstar = ((c.g * ml.h * ml.wthetav) / ml.thetav)^(1 / 3)
-    else
-        ml.wstar = 1e-6
-    end
+    ml.wstar = ml.wthetav > 0 ? ((c.g * ml.h * ml.wthetav) / ml.thetav)^(1 / 3) : 1e-6
 
     ml.wthetave = -x.beta * ml.wthetav
 
-    if x.sw_shearwe
+    # without an inversion the layer grows into the stable air: the jump is gamma * h
+    encr = encroachment(x)
+    jump = encr ? lapse(x.gammatheta, ml.h) * ml.h : ml.dtheta
+    ml.wf = x.dFz / (c.rho * c.cp * jump)
+    if encr
+        ml.we = ml.wthetav / jump
+    elseif x.sw_shearwe
         ml.we = (-ml.wthetave + 5 * sl.ustar^3 * ml.thetav / (c.g * ml.h)) / ml.dthetav
     else
         ml.we = -ml.wthetave / ml.dthetav
@@ -126,13 +131,13 @@ function mixed_layer!(s::ModelState)
 
     wrel_ft = wrel + ws_ft
     ml.thetatend, ml.dthetatend = scalar_tendencies(
-        ml.wtheta, ml.wthetae, 0, x.advtheta, x.gammatheta, ml.h, wrel_ft)
+        ml.wtheta, ml.wthetae, 0, x.advtheta, lapse(x.gammatheta, ml.h), ml.h, wrel_ft)
     ml.qtend, ml.dqtend = scalar_tendencies(
-        ml.wq, ml.wqe, cu.wqM, x.advq, x.gammaq, ml.h, wrel_ft)
+        ml.wq, ml.wqe, cu.wqM, x.advq, lapse(x.gammaq, ml.h), ml.h, wrel_ft)
     ml.CO2tend, ml.dCO2tend = scalar_tendencies(
-        ml.wCO2, ml.wCO2e, cu.wCO2M, x.advCO2, x.gammaCO2, ml.h, wrel_ft)
+        ml.wCO2, ml.wCO2e, cu.wCO2M, x.advCO2, lapse(x.gammaCO2, ml.h), ml.h, wrel_ft)
     sp = s.species
-    for i in 1:NSPECIES
+    for i in eachindex(sp.C)
         sp.wCe[i] = -ml.we * sp.dC[i]
         sp.Ctend[i], sp.dCtend[i] = scalar_tendencies(
             sp.wC[i], sp.wCe[i], sp.wCM[i], x.advC[i], x.gammaC[i], ml.h, wrel_ft)
@@ -143,19 +148,16 @@ function mixed_layer!(s::ModelState)
         w.utend = -x.fc * w.dv + (sl.uw + ml.we * w.du) / ml.h + x.advu
         w.vtend = x.fc * w.du + (sl.vw + ml.we * w.dv) / ml.h + x.advv
 
-        w.dutend = x.gammau * wrel - w.utend
-        w.dvtend = x.gammav * wrel - w.vtend
+        w.dutend = lapse(x.gammau, ml.h) * wrel - w.utend
+        w.dvtend = lapse(x.gammav, ml.h) * wrel - w.vtend
     end
 
-    if cu.ac > 0 || ml.lcl - ml.h < 300
-        cu.dztend = ((ml.lcl - ml.h) - cu.dz_h) / 7200
-    else
-        cu.dztend = zero(cu.dztend)
-    end
+    # dz_h relaxes to lcl - h with a 2 h time scale when clouds exist or lcl - h < 300 m
+    cu.dztend = cu.ac > 0 || ml.lcl - ml.h < 300 ? ((ml.lcl - ml.h) - cu.dz_h) / 7200 : zero(cu.dztend)
     return s
 end
 
-"Advance the mixed-layer variables by one forward Euler step."
+"Advance the mixed layer, the species, `dz_h` and (with `sw_wind`) the wind by one forward Euler step."
 function integrate_mixed_layer!(s::ModelState)
     x, ml, w, cu = s.input, s.mixed_layer, s.wind, s.cumulus
     dt = x.dt

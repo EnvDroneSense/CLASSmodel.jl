@@ -4,16 +4,6 @@
 CurrentModule = CLASSmodel
 ```
 
-| Name | Purpose |
-|:-----|:--------|
-| [`ModelInput`](@ref) | all input of a run, checked by [`validate`](@ref) |
-| [`run_model`](@ref) | run the model, return a [`ModelOutput`](@ref) table |
-| [`init_model`](@ref), [`step!`](@ref) | run the model one step at a time on a [`ModelState`](@ref) |
-| [`input_info`](@ref), [`variable_info`](@ref) | title, unit and symbol of an input or an output |
-| [`mixed_layer_profile`](@ref) | theta and q profiles at one output row |
-| [`PhysicalConstants`](@ref) | physical constants, passed with `constants` |
-| [`AGsParameters`](@ref), [`PlantType`](@ref), [`C3`](@ref), [`C4`](@ref) | plant parameters of the A-Gs scheme |
-
 ## Module
 
 ```@docs
@@ -26,6 +16,19 @@ CLASSmodel
 ModelInput
 validate
 input_info
+soil
+surface
+FluxShape
+Sine
+Cosine
+Block
+Table
+Sun
+Deposition
+Segments
+Reaction
+CLASSmodel.REACTIONS
+CLASSmodel.SPECIES
 PhysicalConstants
 AGsParameters
 PlantType
@@ -40,6 +43,14 @@ run_model
 init_model
 step!
 ModelState
+MixedLayerState
+WindState
+RadiationState
+SurfaceLayerState
+LandSurfaceState
+CumulusState
+SpeciesState
+ChemistryState
 ```
 
 ## Output

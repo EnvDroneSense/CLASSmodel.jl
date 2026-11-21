@@ -16,6 +16,38 @@ these sections, in this order, and leaves out the empty ones:
 
 An entry outside "Changes to model results" leaves results unchanged.
 
+## [Unreleased]
+
+## [0.3.0] - 2026-11-21
+
+### Breaking changes
+
+- The species are an input: `species` lists them (default the 22 of `CLASSmodel.SPECIES`). `C`, `dC`,
+  `gammaC`, `advC` and `wC` are vectors, not tuples, with one value for each species. The output has
+  one column for each species. `run_model` returns a `NamedTuple` whose names depend on `species`.
+- The inputs `sw_reactions` and `stocoef` are removed. The input `reactions` is a vector of `Reaction`
+  (default `CLASSmodel.REACTIONS`). Leave a reaction out to switch it off; the OH yield of r19 is the
+  coefficient of OH in its `Reaction`. `phi` and `k_r05` are `NaN` when the scheme has no `:r05` or `:r21`.
+- The inputs `sinperiod`, `sw_wtheta`, `sw_wq` and `sw_wC` are removed. Give `wtheta`, `wq`,
+  `wCO2` or an entry of `wC` a `FluxShape` instead: `sw_wtheta = true` with `sinperiod = P`
+  becomes `wtheta = Sine(wtheta; period = P)`, and `sw_wC` 2 becomes `Sun(wC)`.
+
+### Features
+
+- `soil(name)` and `surface(name)` give the soil and vegetation parameters of the CLASS model GUI as
+  keywords: `ModelInput(; soil(:sand)..., surface(:maize)...)`.
+- The output columns `qsat`, `e` and `esat` have values in runs without `sw_ls`. Before, they were `NaN`.
+- `Reaction` is exported: a user can give `reactions` a scheme of their own. Its `form` is a symbol such as
+  `:photolysis` or `:arrhenius`. `ModelInput` checks the reactions, finite flux shapes and `Segments`, and
+  `gammatheta > 0` in a run without an inversion.
+- Encroachment: a run with `dtheta = 0`, `beta = 0` and `dq = 0` has no inversion and the layer grows
+  into the stable air above it, `h^2 = h0^2 + 2 wtheta t / gammatheta`. Before, `dtheta = 0` was an error.
+  It is still an error with `sw_cu`.
+- `Segments(z, gamma)`: a lapse rate that changes with height for `gammatheta`, `gammaq`,
+  `gammaCO2`, `gammau` and `gammav`. `mixed_layer_profile` follows the segments.
+- Surface flux shapes `Sine`, `Cosine`, `Block`, `Table`, `Sun` and `Deposition` for `wtheta`,
+  `wq`, `wCO2` and each entry of `wC`. `Sine` is zero outside its window.
+
 ## [0.2.0] - 2026-11-18
 
 ### Breaking changes

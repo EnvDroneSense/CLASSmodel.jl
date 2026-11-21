@@ -1,18 +1,21 @@
 # Model input, physical constants and A-Gs plant parameters.
 
-# The 22 chemical species, in the order of the input tuples and of the output columns.
-const SPECIES = (:Inert, :O3, :O1D, :NO, :NO2, :CH4, :CH2O, :CH3O2, :MVK, :ISO, :RO2, :OH,
+"""
+    CLASSmodel.SPECIES
+
+The 22 default chemical species, the default of the `ModelInput` field `species`. The vectors
+`C`, `dC`, `gammaC`, `advC` and `wC` and the species columns of the output follow this order.
+"""
+const SPECIES =(:Inert, :O3, :O1D, :NO, :NO2, :CH4, :CH2O, :CH3O2, :MVK, :ISO, :RO2, :OH,
     :HO2, :CO, :H2O, :Product, :O2, :N2, :HNO3, :H2O2, :NO3, :N2O5)
 const NSPECIES = length(SPECIES)
-species_index(name) = something(findfirst(==(name), SPECIES))
-const NREACTIONS = 28   # reactions of the chemistry scheme, see reactions.jl
 # default mixing ratios [ppb] and surface fluxes [ppb m s-1]
-const SPECIES_ZERO = ntuple(_ -> 0.0, NSPECIES)
-const SPECIES_C0 = float.((
+const SPECIES_ZERO = zeros(NSPECIES)
+const SPECIES_C0 = float.([
     0, 30, 0, 0.4, 0.6, 1724, 0, 0, 0, 0, 0, 0, 0, 100, 0, 0, 0.2e9, 0.8e9,
-    0, 0, 0, 0))
-const SPECIES_WC0 = float.((
-    1, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+    0, 0, 0, 0])
+const SPECIES_WC0 = float.([
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
 
 """
     PlantType
@@ -39,7 +42,7 @@ Base.@kwdef struct PhysicalConstants{T <: Real}
     k::T = 0.4              # Von Karman constant [-]
     g::T = 9.81             # gravity acceleration [m s-2]
     Rd::T = 287             # gas constant for dry air [J kg-1 K-1]
-    Rv::T = 461.5           # gas constant for moist air [J kg-1 K-1]
+    Rv::T = 461.5           # gas constant for water vapor [J kg-1 K-1]
     bolz::T = 5.67e-8       # Stefan-Boltzmann constant [W m-2 K-4]
     rhow::T = 1000          # density of water [kg m-3]
     S0::T = 1368            # solar constant [W m-2]
@@ -66,11 +69,11 @@ Base.@kwdef struct AGsParameters{T <: Real}
     gm298::T        # mesophyll conductance at 298 K [mm s-1]
     Ammax298::T     # maximal primary productivity [mg m-2 s-1]
     Q10gm::T        # parameter of the mesophyll conductance [-]
-    T1gm::T         # reference temperature of the mesophyll conductance [K]
-    T2gm::T         # reference temperature of the mesophyll conductance [K]
+    T1gm::T         # lower reference temperature of the mesophyll conductance [K]
+    T2gm::T         # upper reference temperature of the mesophyll conductance [K]
     Q10Am::T        # parameter of the maximal primary productivity [-]
-    T1Am::T         # reference temperature of the maximal primary productivity [K]
-    T2Am::T         # reference temperature of the maximal primary productivity [K]
+    T1Am::T         # lower reference temperature of the maximal primary productivity [K]
+    T2Am::T         # upper reference temperature of the maximal primary productivity [K]
     f0::T           # maximum value of Cfrac [-]
     ad::T           # regression coefficient of Cfrac [kPa-1]
     alpha0::T       # initial low light conditions [mg J-1]
@@ -104,31 +107,20 @@ fluxes. The input is checked when it is constructed (see [`validate`](@ref)).
 | time | `runtime`, `dt` |
 | switches | `sw_ml`, `sw_shearwe`, `sw_fixft`, `sw_wind`, `sw_sl`, `sw_rad`, `sw_ls`, `sw_sea`, `sw_cu`, `sw_curad` |
 | mixed layer | `h`, `Ps`, `divU`, `fc`, `beta` |
-| diurnal cycle | `sinperiod`, `sw_wtheta`, `sw_wq` |
 | heat, moisture, CO2 | `theta`, `dtheta`, `gammatheta`, `advtheta`, `wtheta`, `q`, `dq`, `gammaq`, `advq`, `wq`, `CO2`, `dCO2`, `gammaCO2`, `advCO2`, `wCO2` |
-| chemical species | `C`, `dC`, `gammaC`, `advC`, `wC`, `sw_wC` (one value for each of the 22 species) |
-| chemistry | `sw_chem`, `sw_chem_constant`, `sw_photo_constant`, `sw_reactions` (one switch for each of the 28 reactions), `tod_ref`, `Tcbl_ref`, `Tft_ref`, `qcbl_ref`, `qft_ref`, `P_ref`, `stocoef` |
+| chemical species | `species`, `C`, `dC`, `gammaC`, `advC`, `wC` (one value for each of `species`) |
+| chemistry | `sw_chem`, `sw_chem_constant`, `sw_photo_constant`, `reactions`, `tod_ref`, `Tcbl_ref`, `Tft_ref`, `qcbl_ref`, `qft_ref`, `P_ref` |
 | wind | `u`, `du`, `gammau`, `advu`, `v`, `dv`, `gammav`, `advv` |
 | surface layer | `ustar`, `z0m`, `z0h` |
 | radiation | `lat`, `lon`, `doy`, `tstart`, `cc`, `Q`, `dFz` |
 | land surface | `ls_type`, `c3c4`, `c_beta`, soil (`wg`, `w2`, `Tsoil`, `T2`, `a`, `b`, `p`, `CGsat`, `wsat`, `wfc`, `wwilt`, `C1sat`, `C2ref`), vegetation (`LAI`, `gD`, `rsmin`, `rssoilmin`, `alpha`, `cveg`, `Wmax`, `Wl`), `Ts`, `Lambda` |
 | cumulus | `dz_h` |
 
-Notes:
-- `ls_type` is `:js` (Jarvis-Stewart) or `:ags` (A-Gs); `c3c4` is `:c3` or `:c4`.
-- `wCO2` is in mg CO2 m-2 s-1 (converted with `mair / (rho * mco2)`).
-- `c_beta = 0` is a linear water stress response.
-- The 22 species of `CLASSmodel.SPECIES` are in ppb. `Inert` takes part in no reaction: it is the
-  passive scalar. Without `sw_chem` all species are passive.
-  `sw_wC` is the flux mode of each: 0 constant `wC`, 1 `wC * sin(pi t / sinperiod)`,
-  2 `wC` times the solar elevation divided by its noon value (zero at night).
-- `sw_chem` runs the reactions of `sw_reactions` (see `chemistry!`). `sw_chem_constant`
-  takes pressure, temperature and humidity from the reference state (`P_ref`, `Tcbl_ref`, `Tft_ref`,
-  `qcbl_ref`, `qft_ref`: mixed layer and free troposphere) and not from the mixed layer.
-  `sw_photo_constant` fixes the sun of the photolysis at the hour `tod_ref` [h UTC] in the day.
-  `stocoef` is the OH yield of the reaction RO2 + HO2.
-- `sw_curad` has an effect only with `sw_cu` and `sw_rad`; without it, radiation uses `cc`.
-- `sw_sea` has an effect only with `sw_ls`: fixed `Ts`, open-water evaporation, no soil.
+Notes: `wtheta`, `wq`, `wCO2` and each entry of `wC` take a number or a [`FluxShape`](@ref). The `gamma*` fields
+take a number or [`Segments`](@ref). `wCO2` is in mg CO2 m-2 s-1. With `dtheta = 0`, `beta = 0`
+and `dq = 0` the mixed layer grows by encroachment (not with `sw_cu`): it has no inversion and
+the jump is `gammatheta * h`. Use [`soil`](@ref) and [`surface`](@ref) for preset parameter sets. See the
+switches and chemistry pages.
 """
 Base.@kwdef struct ModelInput{T <: Real}
     # time
@@ -148,11 +140,6 @@ Base.@kwdef struct ModelInput{T <: Real}
     sw_curad::Bool = false      # cloud cover of the radiation follows the cumulus, cc = 2 ac
     sw_chem::Bool = false       # chemical reactions of the species
 
-    # diurnal cycle of the prescribed surface fluxes (only without sw_ls)
-    sinperiod::T = 43200        # half period of the sine of the fluxes [s]
-    sw_wtheta::Bool = false     # heat flux follows wtheta * sin(pi t / sinperiod)
-    sw_wq::Bool = false         # moisture flux follows wq * sin(pi t / sinperiod)
-
     # mixed layer
     h::T = 200                  # initial ABL height [m]
     Ps::T = 101300              # surface pressure [Pa]
@@ -163,52 +150,51 @@ Base.@kwdef struct ModelInput{T <: Real}
     # heat
     theta::T = 288              # initial mixed-layer potential temperature [K]
     dtheta::T = 1               # initial temperature jump at h [K]
-    gammatheta::T = 0.006       # free atmosphere potential temperature lapse rate [K m-1]
+    gammatheta::Union{T, Segments{T}} = 0.006       # free atmosphere potential temperature lapse rate [K m-1]
     advtheta::T = 0             # advection of heat [K s-1]
-    wtheta::T = 0.1             # surface kinematic heat flux [K m s-1]
+    wtheta::Union{T, FluxShape} = 0.1    # surface kinematic heat flux [K m s-1]
 
     # moisture
     q::T = 0.008                # initial mixed-layer specific humidity [kg kg-1]
     dq::T = -0.001              # initial specific humidity jump at h [kg kg-1]
-    gammaq::T = 0               # free atmosphere specific humidity lapse rate [kg kg-1 m-1]
+    gammaq::Union{T, Segments{T}} = 0.0              # free atmosphere specific humidity lapse rate [kg kg-1 m-1]
     advq::T = 0                 # advection of moisture [kg kg-1 s-1]
-    wq::T = 0.1e-3              # surface kinematic moisture flux [kg kg-1 m s-1]
+    wq::Union{T, FluxShape} = 0.1e-3     # surface kinematic moisture flux [kg kg-1 m s-1]
 
     # CO2
     CO2::T = 422                # initial mixed-layer CO2 [ppm]
     dCO2::T = -44               # initial CO2 jump at h [ppm]
-    gammaCO2::T = 0             # free atmosphere CO2 lapse rate [ppm m-1]
+    gammaCO2::Union{T, Segments{T}} = 0.0            # free atmosphere CO2 lapse rate [ppm m-1]
     advCO2::T = 0               # advection of CO2 [ppm s-1]
-    wCO2::T = 0                 # surface kinematic CO2 flux [mg CO2 m-2 s-1, see notes]
+    wCO2::Union{T, FluxShape} = 0.0      # surface kinematic CO2 flux [mg CO2 m-2 s-1, see notes]
 
-    # chemical species, in the order of SPECIES
-    C::NTuple{NSPECIES, T} = SPECIES_C0                       # initial mixing ratio [ppb]
-    dC::NTuple{NSPECIES, T} = SPECIES_ZERO                    # initial jump at h [ppb]
-    gammaC::NTuple{NSPECIES, T} = SPECIES_ZERO                # lapse rate above h [ppb m-1]
-    advC::NTuple{NSPECIES, T} = SPECIES_ZERO                  # advection [ppb s-1]
-    wC::NTuple{NSPECIES, T} = SPECIES_WC0                     # surface flux [ppb m s-1]
-    sw_wC::NTuple{NSPECIES, Int} = ntuple(_ -> 0, NSPECIES)   # flux mode: 0 constant, 1 sine, 2 sun
+    # chemical species: the names and, in that order, one value for each
+    species::Vector{Symbol} = collect(SPECIES)
+    C::Vector{T} = SPECIES_C0                       # initial mixing ratio [ppb]
+    dC::Vector{T} = SPECIES_ZERO                    # initial jump at h [ppb]
+    gammaC::Vector{T} = SPECIES_ZERO                # lapse rate above h [ppb m-1]
+    advC::Vector{T} = SPECIES_ZERO                  # advection [ppb s-1]
+    wC::Vector{Union{T, FluxShape}} = SPECIES_WC0   # surface flux [ppb m s-1]
 
     # chemistry, used with sw_chem
     sw_chem_constant::Bool = true   # rates at the reference state instead of the mixed layer
     sw_photo_constant::Bool = true  # photolysis with the sun at tod_ref in the day
-    sw_reactions::NTuple{NREACTIONS, Bool} = ntuple(_ -> true, NREACTIONS)   # reactions r01 to r28
+    reactions::Vector{Reaction} = REACTIONS   # the reactions that run
     tod_ref::T = 12                 # reference time of the day for the photolysis [h UTC]
     Tcbl_ref::T = 298               # reference temperature of the mixed layer [K]
     Tft_ref::T = 298                # reference temperature of the free troposphere [K]
     qcbl_ref::T = 0.010             # reference specific humidity of the mixed layer [kg kg-1]
     qft_ref::T = 0.010              # reference specific humidity of the free troposphere [kg kg-1]
     P_ref::T = 100000               # reference pressure [Pa]
-    stocoef::T = 0                  # OH yield of RO2 + HO2 [-]
 
     # wind
     u::T = 6                    # initial mixed-layer u-wind speed [m s-1]
     du::T = 4                   # initial u-wind jump at h [m s-1]
-    gammau::T = 0               # free atmosphere u-wind lapse rate [s-1]
+    gammau::Union{T, Segments{T}} = 0.0              # free atmosphere u-wind lapse rate [s-1]
     advu::T = 0                 # advection of u-wind [m s-2]
     v::T = -4                   # initial mixed-layer v-wind speed [m s-1]
     dv::T = 4                   # initial v-wind jump at h [m s-1]
-    gammav::T = 0               # free atmosphere v-wind lapse rate [s-1]
+    gammav::Union{T, Segments{T}} = 0.0              # free atmosphere v-wind lapse rate [s-1]
     advv::T = 0                 # advection of v-wind [m s-2]
 
     # surface layer
@@ -259,7 +245,7 @@ Base.@kwdef struct ModelInput{T <: Real}
     dz_h::T = 150               # transition layer thickness [m]
 
     function ModelInput{T}(args...) where {T <: Real}
-        input = new{T}(args...)
+        input = new{T}(map((F, v) -> fieldvalue(T, F, v), fieldtypes(ModelInput{T}), args)...)
         validate(input)
         return input
     end
@@ -269,20 +255,9 @@ ModelInput(args...) = ModelInput{Float64}(args...)
 """
     validate(input::ModelInput)
 
-Throw an `ArgumentError` if `input` cannot be run. Called by the
-[`ModelInput`](@ref) constructor. Checks:
-
-- every numeric field is finite
-- positive time step, run time, `sinperiod`, `h`, `Ps`, `z0m`, `z0h`
-- `dtheta != 0` when the mixed layer or the cumulus scheme is on
-- `0 <= cc <= 1`, `0 <= cveg <= 1`, `0 <= c_beta <= 1`
-- `C >= 0` and `sw_wC` is 0, 1 or 2 for every species
-- `0 <= tod_ref <= 24`, `P_ref`, `Tcbl_ref`, `Tft_ref` > 0, `qcbl_ref`, `qft_ref`, `stocoef` >= 0
-- `ls_type` and `c3c4` have a known value
-- with `sw_ls` and not `sw_sea`: `LAI`, `Wmax`, `wg` > 0, `0 < w2 < wsat` and `wwilt < wfc <= wsat`
-- with `sw_cu`: `dz_h > 0`
-- A-Gs (`sw_ls` without `sw_sea`, `ls_type = :ags`) needs `sw_rad`, because it uses the
-  incoming shortwave radiation
+Throw an `ArgumentError` if `input` cannot be run. The [`ModelInput`](@ref) constructor calls it.
+It checks finite values, ranges, one value per species, the reactions and the switches that
+need each other.
 """
 function validate(x::ModelInput)
     function check(ok, name, rule)
@@ -292,26 +267,28 @@ function validate(x::ModelInput)
     nonnegative(name) = check(getfield(x, name) >= 0, name, ">= 0")
     fraction(name) = check(0 <= getfield(x, name) <= 1, name, "in [0, 1]")
 
-    for name in fieldnames(typeof(x))
-        field = getfield(x, name)
-        for v in (field isa Tuple ? field : (field,))
-            v isa Real && !(v isa Bool) && !isfinite(v) &&
-                throw(ArgumentError("$name must be finite, got $v"))
-        end
-    end
+    foreach(name -> check_finite(name, getfield(x, name)), fieldnames(typeof(x)))
     check(all(>=(0), x.C), :C, ">= 0")
-    check(all(in((0, 1, 2)), x.sw_wC), :sw_wC, "0, 1 or 2")
-    foreach(positive, (:runtime, :dt, :sinperiod, :h, :Ps, :P_ref, :Tcbl_ref, :Tft_ref))
-    foreach(nonnegative, (:qcbl_ref, :qft_ref, :stocoef))
+    for (name, v) in ((:C, x.C), (:dC, x.dC), (:gammaC, x.gammaC), (:advC, x.advC), (:wC, x.wC))
+        length(v) == length(x.species) ||
+            throw(ArgumentError("$name needs one value for each species"))
+    end
+    foreach(positive, (:runtime, :dt, :h, :Ps, :P_ref, :Tcbl_ref, :Tft_ref, :z0m, :z0h))
+    foreach(nonnegative, (:qcbl_ref, :qft_ref))
     check(0 <= x.tod_ref <= 24, :tod_ref, "in [0, 24]")
-    foreach(positive, (:z0m, :z0h))
     x.runtime >= x.dt || throw(ArgumentError("runtime must be at least dt"))
-    (x.sw_ml || x.sw_cu) && x.dtheta == 0 &&
-        throw(ArgumentError("dtheta must be nonzero"))
+    (x.sw_ml || x.sw_cu) && x.dtheta == 0 && !(encroachment(x) && !x.sw_cu) &&
+        throw(ArgumentError("dtheta must be nonzero, or zero with beta = 0 and dq = 0 (encroachment)"))
+    # the jump of the layer without an inversion is gamma * h
+    x.sw_ml && encroachment(x) && !all(>(0), lapse_values(x.gammatheta)) &&
+        throw(ArgumentError("encroachment needs gammatheta > 0"))
     foreach(fraction, (:cc, :cveg, :c_beta))
+    x.sw_chem && foreach(rx -> check_reaction(rx, x.species), x.reactions)
     x.ls_type in (:js, :ags) ||
         throw(ArgumentError("ls_type must be :js or :ags, got :$(x.ls_type)"))
     x.c3c4 in (:c3, :c4) || throw(ArgumentError("c3c4 must be :c3 or :c4, got :$(x.c3c4)"))
+    x.sw_ls && (x.wtheta isa FluxShape || x.wq isa FluxShape) && throw(ArgumentError(
+        "with sw_ls the land surface sets the fluxes: wtheta and wq must be numbers"))
     if x.sw_ls && !x.sw_sea
         foreach(positive, (:LAI, :Wmax, :wg))
         0 < x.w2 < x.wsat || throw(ArgumentError("need 0 < w2 < wsat"))

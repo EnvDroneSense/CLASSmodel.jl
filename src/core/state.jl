@@ -1,21 +1,5 @@
 # Model state: the input, the constants and one state struct per component.
 
-const ε = 0.622     # ratio of the molar masses of water vapor and dry air [-]
-const VIRT = 0.61   # virtual temperature coefficient, Rv / Rd - 1 [-]
-const DAY = 86400   # length of a day [s]
-
-"Saturated vapor pressure [Pa] at temperature `T` [K]."
-esat(T) = 0.611e3 * exp(17.2694 * (T - 273.16) / (T - 35.86))
-
-"Derivative of [`esat`](@ref) with respect to the temperature [Pa K-1]."
-desat(T) = esat(T) * 17.2694 * (273.16 - 35.86) / (T - 35.86)^2
-
-"Saturated specific humidity [kg kg-1] at temperature `T` [K] and pressure `p` [Pa]."
-qsat(T, p) = ε * esat(T) / p
-
-# Factor from a CO2 flux in mg CO2 m-2 s-1 to ppm m s-1.
-mg_to_ppm(c) = c.mair / (c.rho * c.mco2)
-
 "State of the mixed layer: bulk values, surface and entrainment fluxes, top diagnostics."
 Base.@kwdef mutable struct MixedLayerState{T <: Real}
     h::T = NaN              # ABL height [m]
@@ -149,8 +133,7 @@ Base.@kwdef mutable struct SpeciesState{T <: Real}
 end
 
 function SpeciesState(x::ModelInput{T}) where {T}
-    return SpeciesState{T}(collect(x.C), collect(x.dC), collect(x.wC), zeros(T, NSPECIES),
-        zeros(T, NSPECIES), zeros(T, NSPECIES), zeros(T, NSPECIES))
+    return SpeciesState{T}(copy(x.C), copy(x.dC), (zeros(T, length(x.species)) for _ in 1:5)...)
 end
 
 "State of the chemistry: the scheme, the rate constants, the solver work arrays, diagnostics."
@@ -166,16 +149,21 @@ mutable struct ChemistryState{T <: Real}
 end
 
 function ChemistryState(x::ModelInput{T}) where {T}
-    scheme = x.sw_chem ? chemistry_scheme(x) : ChemistryScheme{T}()
-    return ChemistryState{T}(scheme, zeros(T, NREACTIONS), zeros(T, NREACTIONS),
-        zeros(T, NSPECIES), zeros(T, NSPECIES), zeros(T, NSPECIES), zero(T), zero(T))
+    scheme = x.sw_chem ? ChemistryScheme{T}(x.species, x.reactions) : ChemistryScheme{T}(x.species, Reaction[])
+    n, m = length(scheme.reactions), length(x.species)
+    return ChemistryState{T}(scheme, zeros(T, n), zeros(T, n),
+        zeros(T, m), zeros(T, m), zeros(T, m), zero(T), zero(T))
 end
 
 """
     ModelState{T}
 
-State of a running model: the fixed `input` and `constants`, the number of completed steps
-`t` and the state of each component.
+State of a running model: the fixed `input`, `constants` and `plant`, the number of
+completed steps `t` and one state per component: `mixed_layer` ([`MixedLayerState`](@ref)),
+`wind` ([`WindState`](@ref)), `radiation` ([`RadiationState`](@ref)), `surface_layer`
+([`SurfaceLayerState`](@ref)), `land_surface` ([`LandSurfaceState`](@ref)), `cumulus`
+([`CumulusState`](@ref)), `species` ([`SpeciesState`](@ref)) and `chemistry`
+([`ChemistryState`](@ref)).
 """
 mutable struct ModelState{T <: Real}
     input::ModelInput{T}
@@ -193,11 +181,10 @@ mutable struct ModelState{T <: Real}
 end
 
 """
-    init_model(input; constants = PhysicalConstants{T}(), plant = AGsParameters{T}(input.c3c4))
-        -> ModelState
+    init_model(input; constants = PhysicalConstants{T}(), plant = <preset of input.c3c4>) -> ModelState
 
 Build the initial state from `input` and compute the initial diagnostics. `plant` holds the
-A-Gs parameters; the default is the preset of `input.c3c4`.
+A-Gs parameters. The default is [`C3`](@ref) or [`C4`](@ref), as `input.c3c4` selects.
 """
 function init_model(x::ModelInput{T};
         constants::PhysicalConstants{T} = PhysicalConstants{T}(),
@@ -205,9 +192,8 @@ function init_model(x::ModelInput{T};
     s = ModelState{T}(
         x, constants, plant,
         MixedLayerState{T}(;
-            h = x.h, theta = x.theta, dtheta = x.dtheta, wtheta = x.wtheta,
-            q = x.q, dq = x.dq, wq = x.wq, CO2 = x.CO2, dCO2 = x.dCO2,
-            wCO2 = x.wCO2 * mg_to_ppm(constants)),
+            h = x.h, theta = x.theta, dtheta = x.dtheta, wtheta = flux(x.wtheta, x, x.dt, x.theta),
+            q = x.q, dq = x.dq, wq = flux(x.wq, x, x.dt, x.q), CO2 = x.CO2, dCO2 = x.dCO2),
         WindState{T}(; u = x.u, du = x.du, v = x.v, dv = x.dv),
         RadiationState{T}(; Q = x.Q, cc = x.cc),
         SurfaceLayerState{T}(; ustar = x.ustar, thetasurf = x.theta),

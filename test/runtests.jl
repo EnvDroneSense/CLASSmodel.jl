@@ -11,5 +11,6 @@ using Test
     include("test_ags.jl")
     include("test_cumulus.jl")
     include("test_chemistry.jl")
+    include("test_fluxes.jl")
     include("test_quality.jl")
 end

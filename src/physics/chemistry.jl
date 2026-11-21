@@ -1,10 +1,12 @@
-# Gas-phase chemistry of the 22 species: rate constants and the solver. Mixing ratios in ppb.
+# Gas-phase chemistry of the input species: rate constants and the solver. Mixing ratios in ppb.
 
 const MW_AIR = 28.97   # molar mass of dry air [g mol-1]
 const MW_H2O = 18.0    # molar mass of water [g mol-1]
-const I_H2O, I_NO, I_NO2, I_O3 = species_index.((:H2O, :NO, :NO2, :O3))
-const I_R05 = something(findfirst(r -> r.name == :r05, REACTIONS))   # NO2 photolysis
-const I_R21 = something(findfirst(r -> r.name == :r21, REACTIONS))   # NO + O3
+# Rate constant of the reaction `name`, or NaN when the scheme does not have it.
+function rate_of(K, scheme::ChemistryScheme, name)
+    r = findfirst(rx -> rx.name == name, scheme.reactions)
+    return r === nothing ? oftype(zero(eltype(K)), NaN) : K[r]
+end
 
 # Specific humidity [kg kg-1] as a mixing ratio of H2O [ppb].
 h2o_ppb(q) = q * 1e9 * MW_AIR / MW_H2O
@@ -13,38 +15,32 @@ h2o_ppb(q) = q * 1e9 * MW_AIR / MW_H2O
     rate_constants!(K, scheme, p, T, q, coszen, cloud)
 
 Fill `K` with the rate constants [s-1, ppb-1 s-1] of the reactions of `scheme` at pressure
-`p` [Pa], temperature `T` [K] and specific humidity `q`. A photolysis rate is zero at night and
-is multiplied by `cloud`. The forms: 1 `A`, 2 `A exp(B/T)`, 4 and 5 a pressure fall-off,
-6 HO2 + HO2, 7 `A (T/B)^C exp(D/T)`.
+`p` [Pa], temperature `T` [K] and specific humidity `q` [kg kg-1]. `coszen` is the cosine
+of the solar zenith angle [-]. A photolysis rate is multiplied by `cloud` [-]. The forms are in [`Reaction`](@ref).
 """
 function rate_constants!(K, scheme::ChemistryScheme, p, T, q, coszen, cloud)
     q_ppb = h2o_ppb(q)
     conv = 6.023e8 * (p / 100) / (8.314e-2 * T)   # molecules cm-3 per ppb
-    for (r, rx) in enumerate(REACTIONS)
-        if !scheme.active[r]
-            K[r] = 0
-            continue
-        end
+    for (r, rx) in enumerate(scheme.reactions)
         A, B, C, D, E, F, G = rx.k
-        if rx.photolysis
+        form = rx.form
+        if form === :photolysis
             K[r] = coszen > 0 ? cloud * (A * exp(B / coszen)) : zero(coszen)
-        elseif rx.form == 1
+        elseif form === :constant
             K[r] = A * conv
-        elseif rx.form == 2
+        elseif form === :arrhenius
             K[r] = A * exp(B / T) * conv
-        elseif rx.form == 4 || rx.form == 5
+        elseif form === :falloff || form === :decomposition
             k1 = A * (T / 300)^B * exp(C / T) * conv * 1e9
             k2 = D * (T / 300)^E * exp(F / T)
-            K[r] = k1 * k2 / (k1 + k2) * G * (rx.form == 4 ? conv : 1)
-        elseif rx.form == 6
+            K[r] = k1 * k2 / (k1 + k2) * G * (form === :falloff ? conv : 1)
+        elseif form === :ho2
             k1 = A * exp(B / T) * conv
             k2 = C * exp(D / T) * conv * conv * 1e9
             k3 = E * exp(F / T) * conv * q_ppb
             K[r] = (k1 + k2) * (1 + k3)
-        elseif rx.form == 7
+        else   # :power
             K[r] = A * (T / B)^C * exp(D / T) * conv^2
-        else
-            throw(ArgumentError("unknown rate form $(rx.form) of $(rx.name)"))
         end
     end
     return K
@@ -55,7 +51,8 @@ end
 function solve_chemistry!(y, y0, c, q, scheme::ChemistryScheme, K, dt)
     copyto!(y0, c)
     copyto!(y, c)
-    y0[I_H2O] = y[I_H2O] = h2o_ppb(q)
+    ih = species_index(scheme, :H2O)
+    ih > 0 && (y0[ih] = y[ih] = h2o_ppb(q))
     for _ in 1:4
         for n in scheme.solved
             P = L = zero(eltype(y))
@@ -76,13 +73,13 @@ end
 """
     chemistry!(s::ModelState, dt)
 
-Advance the species by `dt` in the mixed layer and in the free troposphere (`C + dC`), and
+Advance the species by `dt` [s] in the mixed layer and in the free troposphere (`C + dC`), and
 set `dC` from the two. H2O follows `q`. Also store `phi`, the photostationary state of NO,
 NO2 and O3, and `k_r05`, the NO2 photolysis rate. See `ModelInput` for the switches.
 """
 function chemistry!(s::ModelState, dt)
     x, c, ml, ch, sp = s.input, s.constants, s.mixed_layer, s.chemistry, s.species
-    sinlea = solar_elevation(x, utc_seconds(x, s.t))
+    sinlea = solar_elevation(x, utc_seconds(x, s.t * x.dt))
     if x.sw_photo_constant && sinlea >= 0
         sinlea = solar_elevation(x, x.tod_ref * 3600)
     end
@@ -102,9 +99,11 @@ function chemistry!(s::ModelState, dt)
     @. ch.fsc = sp.C + sp.dC   # before C changes
     solve_chemistry!(y, ch.y0, sp.C, q_cbl, scheme, ch.Kcbl, dt)
     copyto!(sp.C, y)
-    K05, K21 = ch.Kcbl[I_R05], ch.Kcbl[I_R21]
-    ch.phi = K05 > 1e-10 && y[I_NO2] > 1e-5 ? K21 * y[I_NO] * y[I_O3] / (K05 * y[I_NO2]) :
-             zero(K05)
+    K05 = rate_of(ch.Kcbl, scheme, :r05)   # NO2 photolysis
+    K21 = rate_of(ch.Kcbl, scheme, :r21)   # NO + O3
+    iNO, iNO2, iO3 = species_index.((scheme,), (:NO, :NO2, :O3))
+    ch.phi = isnan(K05 + K21) || 0 in (iNO, iNO2, iO3) ? oftype(K05, NaN) :
+             K05 > 1e-10 && y[iNO2] > 1e-5 ? K21 * y[iNO] * y[iO3] / (K05 * y[iNO2]) : zero(K05)
     ch.k_r05 = K05
 
     solve_chemistry!(y, ch.y0, ch.fsc, q_ft, scheme, ch.Kft, dt)
