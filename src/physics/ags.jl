@@ -96,15 +96,15 @@ function ags!(s::ModelState)
             (p.gmin / c.nuco2q + a1 * fstr * An / ((co2abs - CO2comp) * (1 + Ds / Dstar)))
 
     # surface resistance for moisture and CO2, and the net CO2 flux into the plant
-    ls.rs = 1 / (1.6 * gcco2)
+    ls.rs = 1 / (c.nuco2q * gcco2)
     rsCO2 = 1 / gcco2
-    An = -(co2abs - ci) / (sl.ra + rsCO2)
+    Anet = -(co2abs - ci) / (sl.ra + rsCO2)
 
     # soil respiration
     fw = c.Cw * c.wmax / (ls.wg + c.wmin)
     Resp = c.R10 * (1 - fw) * exp(c.E0 / (283.15 * 8.314) * (1 - 283.15 / ls.Tsoil))
 
-    ml.wCO2A = An * f
+    ml.wCO2A = Anet * f
     ml.wCO2R = Resp * f
     ml.wCO2 = ml.wCO2A + ml.wCO2R
     return nothing

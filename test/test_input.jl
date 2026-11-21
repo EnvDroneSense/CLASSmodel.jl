@@ -38,7 +38,9 @@
             (; sw_ls = true, ls_type = :ags),   # A-Gs needs radiation
             (; dtheta = 0), (; sw_ml = false, sw_cu = true, dtheta = 0),   # division by dtheta
             (; sw_ls = true, w2 = 0.472), (; sw_cu = true, dz_h = 0),
-            (; theta = NaN),
+            (; theta = NaN), (; wtheta = Sine(NaN)),
+            (; dtheta = 0, beta = 0, dq = 0, gammatheta = 0),   # no inversion needs a lapse rate
+            (; sw_chem = true, reactions = [Reaction(:x, :nonsense, [:O3 => 1], [:Product => 1.0], ntuple(_ -> 1.0, 7))]),
             (; C = ntuple(_ -> -1.0, 22)), (; wC = ntuple(_ -> NaN, 22)),
             (; tod_ref = 25), (; P_ref = 0), (; qcbl_ref = -0.1)
         )

@@ -1,6 +1,7 @@
 # Thermodynamic constants and helpers shared by the components.
 
 const ε = 0.622     # ratio of the molar masses of water vapor and dry air [-]
+# The molar masses (ε here, MW_AIR in chemistry.jl, mair in the input) and VIRT are as in the original model.
 const VIRT = 0.61   # virtual temperature coefficient, Rv / Rd - 1 [-]
 const DAY = 86400   # length of a day [s]
 

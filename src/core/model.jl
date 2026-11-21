@@ -49,7 +49,7 @@ function step!(s::ModelState)
 end
 
 """
-    run_model(input; constants = PhysicalConstants{T}(), progress = nothing,
+    run_model(input; constants = PhysicalConstants{T}(), plant = ..., progress = nothing,
         progress_every = 100) -> ModelOutput
 
 Run the model for `floor(runtime / dt)` steps and return the time series. Each row holds

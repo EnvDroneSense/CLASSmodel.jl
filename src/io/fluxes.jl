@@ -50,7 +50,17 @@ end
 for S in (:Sine, :Cosine, :Block)
     @eval $S(amplitude; period = 43200, start = 0) = $S(promote(float(amplitude), period, start)...)
 end
-Table(values; interval = 3600) = Table(float.(collect(values)), float(interval))
+function Table(values; interval = 3600)
+    interval > 0 || throw(ArgumentError("Table needs interval > 0"))
+    return Table(float.(collect(values)), float(interval))
+end
+
+# Throw if a number inside a field of an input is not finite (a Bool and other types pass).
+check_finite(name, v::Real) = v isa Bool || isfinite(v) ||
+    throw(ArgumentError("$name must be finite, got $v"))
+check_finite(name, v::Union{Tuple, AbstractVector{<:Real}}) = foreach(w -> check_finite(name, w), v)
+check_finite(name, v::FluxShape) = foreach(n -> check_finite(name, getfield(v, n)), fieldnames(typeof(v)))
+check_finite(name, v) = nothing
 
 # The value of a flux or lapse-rate field of an input with number type `T`: a number becomes a `T`.
 fieldvalue(::Type{T}, v::Real) where {T} = T(v)
@@ -78,12 +88,12 @@ function flux(f::Cosine, x, t, c)
     p = window(f, t)
     return p === nothing ? zero(c) : f.amplitude / 2 * (1 - cospi(2p))
 end
-flux(f::Block, x, t, c) = window(f, t) === nothing ? zero(c) : oftype(c, f.amplitude)
+flux(f::Block, x, t, c) = window(f, t) === nothing ? zero(c) : f.amplitude
 function flux(f::Table, x, t, c)
     i = floor(Int, t / f.interval) + 1
-    i >= length(f.values) && return oftype(c, f.values[end])
+    i >= length(f.values) && return f.values[end]
     p = t / f.interval - (i - 1)
-    return oftype(c, f.values[i] + p * (f.values[i + 1] - f.values[i]))
+    return f.values[i] + p * (f.values[i + 1] - f.values[i])
 end
 function flux(f::Sun, x, t, c)
     return f.amplitude * max(solar_elevation(x, utc_seconds(x, t)), 0) / solar_elevation_max(x)

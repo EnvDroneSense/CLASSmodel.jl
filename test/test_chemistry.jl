@@ -41,13 +41,13 @@
             wC = one_species(10, 0.5), C = ntuple(i -> i in (10, 12, 13) ? 1.0 : 0.0, 22))
         r = CLASSmodel.REACTIONS[19]
         yield = copy(CLASSmodel.REACTIONS)
-        yield[19] = Reaction(r.name, r.photolysis, r.form, r.inputs, [:OH => 2.0, :Product => 1.0], r.k)
+        yield[19] = Reaction(r.name, r.form, r.inputs, [:OH => 2.0, :Product => 1.0], r.k)
         @test chem(; iso..., reactions = yield).OH[end] > chem(; iso...).OH[end]
         # a scheme of one new reaction: O3 decays to a product at the rate A
-        decay = [Reaction(:d1, false, 1, [:O3 => 1], [:Product => 1.0], (1e-13, 0, 0, 0, 0, 0, 0))]
+        decay = [Reaction(:d1, :constant, [:O3 => 1], [:Product => 1.0], (1e-13, 0, 0, 0, 0, 0, 0))]
         e = chem(; reactions = decay, sw_ml = false)
         @test 0 < e.O3[end] < e.O3[1] && all(isnan, e.k_r05)
-        @test_throws ArgumentError chem(; reactions = [Reaction(:bad, false, 1,
+        @test_throws ArgumentError chem(; reactions = [Reaction(:bad, :constant,
             [:NO => 1, :O3 => 1, :OH => 1], [:Product => 1.0], r.k)])
     end
 end

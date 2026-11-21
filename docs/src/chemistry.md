@@ -68,8 +68,7 @@ out = run_model(x)
 
 ## List of reactions
 
-The position in the table is the position in `CLASSmodel.REACTIONS`. A photolysis rate depends
-on the solar elevation and is zero at night. The OH yield of r19 is its coefficient of OH; it is
+The position in the table is the position in `CLASSmodel.REACTIONS`. The `form` of a reaction selects its rate expression, see [`Reaction`](@ref). The OH yield of r19 is its coefficient of OH; it is
 0 in the default table. To change it, make a new `Reaction` for r19 with another coefficient.
 
 ```@eval
@@ -77,7 +76,7 @@ using CLASSmodel, Markdown
 coef(c) = c == 1 ? "" : "$(isinteger(c) ? Int(c) : c) "
 side(terms) = join(("$(coef(c))$s" for (s, c) in terms), " + ")
 rows = map(enumerate(CLASSmodel.REACTIONS)) do (i, r)
-    "| $i | $(r.name) | $(side(r.inputs)) -> $(side(r.outputs)) | $(r.photolysis ? "yes" : "no") |"
+    "| $i | $(r.name) | $(side(r.inputs)) -> $(side(r.outputs)) | $(r.form) |"
 end
-Markdown.parse(join(["| Position | Name | Reaction | Photolysis |", "|:--|:--|:--|:--|", rows...], "\n"))
+Markdown.parse(join(["| Position | Name | Reaction | Form |", "|:--|:--|:--|:--|", rows...], "\n"))
 ```

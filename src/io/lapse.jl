@@ -11,12 +11,16 @@ struct Segments{T <: Real}
     z::Vector{T}
     gamma::Vector{T}
     function Segments{T}(z, gamma) where {T}
-        issorted(z) && length(gamma) == length(z) + 1 ||
-            throw(ArgumentError("Segments needs ascending z and one more gamma than z"))
+        issorted(z) && length(gamma) == length(z) + 1 && all(isfinite, z) && all(isfinite, gamma) ||
+            throw(ArgumentError("Segments needs finite, ascending z and one more gamma than z"))
         return new{T}(z, gamma)
     end
 end
 Segments(z, gamma) = Segments{Float64}(z, gamma)
+
+# The lapse rates of a number or of `Segments`, as a collection.
+lapse_values(g::Real) = (g,)
+lapse_values(g::Segments) = g.gamma
 
 "Lapse rate just above the height `h`."
 lapse(g::Real, h) = g

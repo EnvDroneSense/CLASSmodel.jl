@@ -31,6 +31,10 @@ Virtual temperatures, values at the top of the mixed layer and the lifting conde
 function statistics!(s::ModelState)
     x, c, ml = s.input, s.constants, s.mixed_layer
 
+    ml.esat = esat(ml.theta)
+    ml.qsat = qsat(ml.theta, x.Ps)
+    ml.e = ml.q * x.Ps / ε
+
     ml.thetav = ml.theta + VIRT * ml.theta * ml.q
     ml.wthetav = ml.wtheta + VIRT * ml.theta * ml.wq
     ml.dthetav = (ml.theta + ml.dtheta) * (1 + VIRT * (ml.q + ml.dq)) -
@@ -57,7 +61,7 @@ function statistics!(s::ModelState)
         it += 1
     end
     ml.lcl = lcl
-    it == itmax && @warn "LCL calculation not converged" RHlcl lcl
+    (RHlcl <= 0.9999 || RHlcl >= 1.0001) && @warn "LCL calculation not converged" RHlcl lcl
     return s
 end
 
@@ -146,11 +150,7 @@ function mixed_layer!(s::ModelState)
         w.dvtend = lapse(x.gammav, ml.h) * wrel - w.vtend
     end
 
-    if cu.ac > 0 || ml.lcl - ml.h < 300
-        cu.dztend = ((ml.lcl - ml.h) - cu.dz_h) / 7200
-    else
-        cu.dztend = zero(cu.dztend)
-    end
+    cu.dztend = cu.ac > 0 || ml.lcl - ml.h < 300 ? ((ml.lcl - ml.h) - cu.dz_h) / 7200 : zero(cu.dztend)
     return s
 end
 

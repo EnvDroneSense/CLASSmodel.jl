@@ -36,10 +36,6 @@ function land_surface!(s::ModelState)
     ueff = effective_wind(s)
     sl.ra = x.sw_sl ? (sl.Cs * ueff)^-1 : ueff / max(1e-3, sl.ustar)^2
 
-    ml.esat = esat(ml.theta)
-    ml.qsat = qsat(ml.theta, x.Ps)
-    ml.e = ml.q * x.Ps / ε
-
     x.sw_sea ? open_water!(s) : land!(s)
 
     ml.wtheta = ls.H / (c.rho * c.cp)

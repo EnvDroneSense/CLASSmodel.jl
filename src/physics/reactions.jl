@@ -2,82 +2,103 @@
 # from them.
 
 """
-    Reaction(name, photolysis, form, inputs, outputs, k)
+    Reaction(name, form, inputs, outputs, k)
 
 One reaction of the chemistry. `inputs` and `outputs` map a species to its coefficient (at
-most two inputs). `form` selects the rate expression (see `rate_constants!`); a photolysis
-reaction depends on the solar elevation instead of the temperature. `k` holds the constants
-A to G of the rate. The input `reactions` of `ModelInput` is a vector of these; the default
-is `CLASSmodel.REACTIONS`. `phi` and `k_r05` in the output use the reactions `:r05` and `:r21`.
+most two inputs). `k` holds the constants A to G of the rate, which `form` selects:
+
+| `form` | rate constant |
+|:-------|:--------------|
+| `:photolysis` | `cloud * A exp(B / cos(zenith))`, zero at night |
+| `:constant` | `A` |
+| `:arrhenius` | `A exp(B / T)` |
+| `:falloff`, `:decomposition` | pressure fall-off from `A` to `G` (two-body, and the decomposition of N2O5) |
+| `:ho2` | HO2 + HO2, with a water term |
+| `:power` | `A (T / B)^C exp(D / T)` |
+
+The input `reactions` of `ModelInput` is
+a vector of these; the default is `CLASSmodel.REACTIONS`. `phi` and `k_r05` in the output use
+the reactions `:r05` and `:r21`.
 """
 struct Reaction
     name::Symbol
-    photolysis::Bool
-    form::Int
+    form::Symbol
     inputs::Vector{Pair{Symbol, Int}}
     outputs::Vector{Pair{Symbol, Float64}}
     k::NTuple{7, Float64}
 end
 
+const FORMS = (:photolysis, :constant, :arrhenius, :falloff, :decomposition, :ho2, :power)
+
+# Throw an ArgumentError for a reaction that the scheme cannot build or evaluate.
+function check_reaction(rx::Reaction)
+    rx.form in FORMS || throw(ArgumentError("reaction $(rx.name): form must be one of $FORMS"))
+    length(rx.inputs) <= 2 ||
+        throw(ArgumentError("reaction $(rx.name) has more than two input species"))
+    for (n, _) in Iterators.flatten((rx.inputs, rx.outputs))
+        n in SPECIES || throw(ArgumentError("reaction $(rx.name): unknown species $n"))
+    end
+end
+
 # The table of the C++ model. The coefficient of OH in r19 is its yield, zero by default.
 const REACTIONS = [
-    Reaction(:r01, true, 2, [:O3 => 1], [:O1D => 1.0, :O2 => 1.0],
+    Reaction(:r01, :photolysis, [:O3 => 1], [:O1D => 1.0, :O2 => 1.0],
         (3.171e-4, -1.809, 1.2, 1.0, 1.0, 1.0, 1.0)),
-    Reaction(:r02, false, 2, [:O1D => 1, :H2O => 1], [:OH => 2.0],
+    Reaction(:r02, :arrhenius, [:O1D => 1, :H2O => 1], [:OH => 2.0],
         (1.63e-10, 60.0, 1.0, 1.0, 1.0, 1.0, 1.0)),
-    Reaction(:r03, false, 2, [:O1D => 1, :N2 => 1], [:O3 => 1.0],
+    Reaction(:r03, :arrhenius, [:O1D => 1, :N2 => 1], [:O3 => 1.0],
         (2.15e-11, 110.0, 1.0, 1.0, 1.0, 1.0, 1.0)),
-    Reaction(:r04, false, 2, [:O1D => 1, :O2 => 1], [:O3 => 1.0],
+    Reaction(:r04, :arrhenius, [:O1D => 1, :O2 => 1], [:O3 => 1.0],
         (3.3e-11, 55.0, 1.0, 1.0, 1.0, 1.0, 1.0)),
-    Reaction(:r05, true, 2, [:NO2 => 1], [:NO => 1.0, :O3 => 1.0],
+    Reaction(:r05, :photolysis, [:NO2 => 1], [:NO => 1.0, :O3 => 1.0],
         (0.0193, -0.575, 1.0, 1.0, 1.0, 1.0, 1.0)),
-    Reaction(:r06, true, 2, [:CH2O => 1], [:HO2 => 1.0],
+    Reaction(:r06, :photolysis, [:CH2O => 1], [:HO2 => 1.0],
         (2.16e-4, -0.778, 1.0, 1.0, 1.0, 1.0, 1.0)),
-    Reaction(:r07, false, 1, [:OH => 1, :CO => 1], [:HO2 => 1.0],
+    Reaction(:r07, :constant, [:OH => 1, :CO => 1], [:HO2 => 1.0],
         (2.4e-13, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0)),
-    Reaction(:r08, false, 2, [:OH => 1, :CH4 => 1], [:CH3O2 => 1.0],
+    Reaction(:r08, :arrhenius, [:OH => 1, :CH4 => 1], [:CH3O2 => 1.0],
         (2.45e-12, -1775.0, 1.0, 1.0, 1.0, 1.0, 1.0)),
-    Reaction(:r09, false, 1, [:OH => 1, :ISO => 1], [:RO2 => 1.0],
+    Reaction(:r09, :constant, [:OH => 1, :ISO => 1], [:RO2 => 1.0],
         (1e-10, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0)),
-    Reaction(:r10, false, 1, [:OH => 1, :MVK => 1], [:HO2 => 1.0, :CH2O => 1.0],
+    Reaction(:r10, :constant, [:OH => 1, :MVK => 1], [:HO2 => 1.0, :CH2O => 1.0],
         (2.4e-11, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0)),
-    Reaction(:r11, false, 2, [:OH => 1, :HO2 => 1], [:H2O => 1.0, :O2 => 1.0],
+    Reaction(:r11, :arrhenius, [:OH => 1, :HO2 => 1], [:H2O => 1.0, :O2 => 1.0],
         (4.8e-11, 250.0, 1.0, 1.0, 1.0, 1.0, 1.0)),
-    Reaction(:r12, false, 2, [:OH => 1, :H2O2 => 1], [:H2O => 1.0, :HO2 => 1.0],
+    Reaction(:r12, :arrhenius, [:OH => 1, :H2O2 => 1], [:H2O => 1.0, :HO2 => 1.0],
         (2.9e-12, -160.0, 1.0, 1.0, 1.0, 1.0, 1.0)),
-    Reaction(:r13, false, 2, [:HO2 => 1, :NO => 1], [:OH => 1.0, :NO2 => 1.0],
+    Reaction(:r13, :arrhenius, [:HO2 => 1, :NO => 1], [:OH => 1.0, :NO2 => 1.0],
         (3.5e-12, 250.0, 1.0, 1.0, 1.0, 1.0, 1.0)),
     Reaction(
-        :r14, false, 2, [:CH3O2 => 1, :NO => 1], [:HO2 => 1.0, :NO2 => 1.0, :CH2O => 1.0],
+        :r14, :arrhenius, [:CH3O2 => 1, :NO => 1], [:HO2 => 1.0, :NO2 => 1.0, :CH2O => 1.0],
         (2.8e-12, 300.0, 1.0, 1.0, 1.0, 1.0, 1.0)),
-    Reaction(:r15, false, 1, [:RO2 => 1, :NO => 1],
+    Reaction(:r15, :constant, [:RO2 => 1, :NO => 1],
         [:HO2 => 1.0, :NO2 => 1.0, :MVK => 1.0, :CH2O => 1.0],
         (1e-11, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0)),
-    Reaction(:r16, false, 2, [:OH => 1, :CH2O => 1], [:HO2 => 1.0, :CO => 1.0],
+    Reaction(:r16, :arrhenius, [:OH => 1, :CH2O => 1], [:HO2 => 1.0, :CO => 1.0],
         (5.5e-12, 125.0, 1.0, 1.0, 1.0, 1.0, 1.0)),
-    Reaction(:r17, false, 6, [:HO2 => 2], [:H2O2 => 1.0],
+    Reaction(:r17, :ho2, [:HO2 => 2], [:H2O2 => 1.0],
         (2.2e-13, 600.0, 1.9e-33, 980.0, 1.4e-21, 2200.0, 1.0)),
-    Reaction(:r18, false, 2, [:CH3O2 => 1, :HO2 => 1], [:Product => 1.0],
+    Reaction(:r18, :arrhenius, [:CH3O2 => 1, :HO2 => 1], [:Product => 1.0],
         (4.1e-13, 750.0, 1.0, 1.0, 1.0, 1.0, 1.0)),
-    Reaction(:r19, false, 1, [:RO2 => 1, :HO2 => 1], [:OH => 0.0, :Product => 1.0],
+    Reaction(:r19, :constant, [:RO2 => 1, :HO2 => 1], [:OH => 0.0, :Product => 1.0],
         (1.5e-11, 750.0, 1.0, 1.0, 1.0, 1.0, 1.0)),
-    Reaction(:r20, false, 2, [:OH => 1, :NO2 => 1], [:HNO3 => 1.0],
+    Reaction(:r20, :arrhenius, [:OH => 1, :NO2 => 1], [:HNO3 => 1.0],
         (3.5e-12, 340.0, 1.0, 1.0, 1.0, 1.0, 1.0)),
-    Reaction(:r21, false, 2, [:NO => 1, :O3 => 1], [:NO2 => 1.0],
+    Reaction(:r21, :arrhenius, [:NO => 1, :O3 => 1], [:NO2 => 1.0],
         (3e-12, -1500.0, 1.0, 1.0, 1.0, 1.0, 1.0)),
-    Reaction(:r22, false, 2, [:NO => 1, :NO3 => 1], [:NO2 => 2.0],
+    Reaction(:r22, :arrhenius, [:NO => 1, :NO3 => 1], [:NO2 => 2.0],
         (1.8e-11, 110.0, 1.0, 1.0, 1.0, 1.0, 1.0)),
-    Reaction(:r23, false, 2, [:NO2 => 1, :O3 => 1], [:NO3 => 1.0, :O2 => 1.0],
+    Reaction(:r23, :arrhenius, [:NO2 => 1, :O3 => 1], [:NO3 => 1.0, :O2 => 1.0],
         (1.4e-13, -2470.0, 1.0, 1.0, 1.0, 1.0, 1.0)),
-    Reaction(:r24, false, 4, [:NO2 => 1, :NO3 => 1], [:N2O5 => 1.0],
+    Reaction(:r24, :falloff, [:NO2 => 1, :NO3 => 1], [:N2O5 => 1.0],
         (3.6e-30, -4.1, 0.0, 1.9e-12, 0.2, 0.0, 0.35)),
-    Reaction(:r25, false, 5, [:N2O5 => 1], [:NO3 => 1.0, :NO2 => 1.0],
+    Reaction(:r25, :decomposition, [:N2O5 => 1], [:NO3 => 1.0, :NO2 => 1.0],
         (1.3e-3, -3.5, -11000.0, 9.7e14, 0.1, -11080.0, 0.35)),
-    Reaction(:r26, false, 2, [:N2O5 => 1, :H2O => 1], [:HNO3 => 2.0],
+    Reaction(:r26, :arrhenius, [:N2O5 => 1, :H2O => 1], [:HNO3 => 2.0],
         (2.5e-22, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0)),
-    Reaction(:r27, false, 7, [:N2O5 => 1, :H2O => 2], [:HNO3 => 2.0, :H2O => 1.0],
+    Reaction(:r27, :power, [:N2O5 => 1, :H2O => 2], [:HNO3 => 2.0, :H2O => 1.0],
         (1.8e-39, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0)),
-    Reaction(:r28, false, 2, [:OH => 1, :O3 => 1], [:HO2 => 1.0, :O2 => 1.0],
+    Reaction(:r28, :arrhenius, [:OH => 1, :O3 => 1], [:HO2 => 1.0, :O2 => 1.0],
         (1.7e-12, -940.0, 1.0, 1.0, 1.0, 1.0, 1.0))
 ]
 
@@ -102,11 +123,6 @@ struct ChemistryScheme{T}
     solved::Vector{Int}
 end
 
-function ChemistryScheme{T}() where {T}
-    return ChemistryScheme{T}(
-        Reaction[], [Term{T}[] for _ in 1:NSPECIES], Int[])
-end
-
 """
     ChemistryScheme{T}(reactions)
 
@@ -114,8 +130,6 @@ Build the production and loss terms of `reactions`. The loss of an input species
 reaction rate divided by that species, so that the solver can treat it implicitly.
 """
 function ChemistryScheme{T}(reactions::Vector{Reaction}) where {T}
-    all(r -> length(r.inputs) <= 2, reactions) ||
-        throw(ArgumentError("a reaction has at most two input species"))
     terms = [Term{T}[] for _ in 1:NSPECIES]
     function term(production, r, coef, factors)
         f = filter(>(0) ∘ last, factors)

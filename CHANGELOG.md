@@ -29,7 +29,10 @@ An entry outside "Changes to model results" leaves results unchanged.
 
 ### Features
 
-- `Reaction` is exported: a user can give `reactions` a scheme of their own.
+- The output columns `qsat`, `e` and `esat` have values in runs without `sw_ls`. Before, they were `NaN`.
+- `Reaction` is exported: a user can give `reactions` a scheme of their own. Its `form` is a symbol such as
+  `:photolysis` or `:arrhenius`. `ModelInput` checks the reactions, finite flux shapes and `Segments`, and
+  `gammatheta > 0` in a run without an inversion.
 - Encroachment: a run with `dtheta = 0`, `beta = 0` and `dq = 0` has no inversion and the layer grows
   into the stable air above it, `h^2 = h0^2 + 2 wtheta t / gammatheta`. Before, `dtheta = 0` was an error.
   It is still an error with `sw_cu`.

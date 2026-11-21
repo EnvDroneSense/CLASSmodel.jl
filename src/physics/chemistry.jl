@@ -16,34 +16,32 @@ h2o_ppb(q) = q * 1e9 * MW_AIR / MW_H2O
     rate_constants!(K, scheme, p, T, q, coszen, cloud)
 
 Fill `K` with the rate constants [s-1, ppb-1 s-1] of the reactions of `scheme` at pressure
-`p` [Pa], temperature `T` [K] and specific humidity `q`. A photolysis rate is zero at night and
-is multiplied by `cloud`. The forms: 1 `A`, 2 `A exp(B/T)`, 4 and 5 a pressure fall-off,
-6 HO2 + HO2, 7 `A (T/B)^C exp(D/T)`.
+`p` [Pa], temperature `T` [K] and specific humidity `q`. A photolysis rate is multiplied by
+`cloud`. The forms are in [`Reaction`](@ref).
 """
 function rate_constants!(K, scheme::ChemistryScheme, p, T, q, coszen, cloud)
     q_ppb = h2o_ppb(q)
     conv = 6.023e8 * (p / 100) / (8.314e-2 * T)   # molecules cm-3 per ppb
     for (r, rx) in enumerate(scheme.reactions)
         A, B, C, D, E, F, G = rx.k
-        if rx.photolysis
+        form = rx.form
+        if form === :photolysis
             K[r] = coszen > 0 ? cloud * (A * exp(B / coszen)) : zero(coszen)
-        elseif rx.form == 1
+        elseif form === :constant
             K[r] = A * conv
-        elseif rx.form == 2
+        elseif form === :arrhenius
             K[r] = A * exp(B / T) * conv
-        elseif rx.form == 4 || rx.form == 5
+        elseif form === :falloff || form === :decomposition
             k1 = A * (T / 300)^B * exp(C / T) * conv * 1e9
             k2 = D * (T / 300)^E * exp(F / T)
-            K[r] = k1 * k2 / (k1 + k2) * G * (rx.form == 4 ? conv : 1)
-        elseif rx.form == 6
+            K[r] = k1 * k2 / (k1 + k2) * G * (form === :falloff ? conv : 1)
+        elseif form === :ho2
             k1 = A * exp(B / T) * conv
             k2 = C * exp(D / T) * conv * conv * 1e9
             k3 = E * exp(F / T) * conv * q_ppb
             K[r] = (k1 + k2) * (1 + k3)
-        elseif rx.form == 7
+        else   # :power
             K[r] = A * (T / B)^C * exp(D / T) * conv^2
-        else
-            throw(ArgumentError("unknown rate form $(rx.form) of $(rx.name)"))
         end
     end
     return K

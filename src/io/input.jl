@@ -258,22 +258,19 @@ function validate(x::ModelInput)
     nonnegative(name) = check(getfield(x, name) >= 0, name, ">= 0")
     fraction(name) = check(0 <= getfield(x, name) <= 1, name, "in [0, 1]")
 
-    for name in fieldnames(typeof(x))
-        field = getfield(x, name)
-        for v in (field isa Tuple ? field : (field,))
-            v isa Real && !(v isa Bool) && !isfinite(v) &&
-                throw(ArgumentError("$name must be finite, got $v"))
-        end
-    end
+    foreach(name -> check_finite(name, getfield(x, name)), fieldnames(typeof(x)))
     check(all(>=(0), x.C), :C, ">= 0")
-    foreach(positive, (:runtime, :dt, :h, :Ps, :P_ref, :Tcbl_ref, :Tft_ref))
+    foreach(positive, (:runtime, :dt, :h, :Ps, :P_ref, :Tcbl_ref, :Tft_ref, :z0m, :z0h))
     foreach(nonnegative, (:qcbl_ref, :qft_ref))
     check(0 <= x.tod_ref <= 24, :tod_ref, "in [0, 24]")
-    foreach(positive, (:z0m, :z0h))
     x.runtime >= x.dt || throw(ArgumentError("runtime must be at least dt"))
     (x.sw_ml || x.sw_cu) && x.dtheta == 0 && !(encroachment(x) && !x.sw_cu) &&
         throw(ArgumentError("dtheta must be nonzero, or zero with beta = 0 and dq = 0 (encroachment)"))
+    # the jump of the layer without an inversion is gamma * h
+    x.sw_ml && encroachment(x) && !all(>(0), lapse_values(x.gammatheta)) &&
+        throw(ArgumentError("encroachment needs gammatheta > 0"))
     foreach(fraction, (:cc, :cveg, :c_beta))
+    x.sw_chem && foreach(check_reaction, x.reactions)
     x.ls_type in (:js, :ags) ||
         throw(ArgumentError("ls_type must be :js or :ags, got :$(x.ls_type)"))
     x.c3c4 in (:c3, :c4) || throw(ArgumentError("c3c4 must be :c3 or :c4, got :$(x.c3c4)"))
