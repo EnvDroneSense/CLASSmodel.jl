@@ -56,7 +56,12 @@ Table(values; interval = 3600) = Table(float.(collect(values)), float(interval))
 fieldvalue(::Type{T}, v::Real) where {T} = T(v)
 fieldvalue(::Type{T}, v::Union{FluxShape, Segments{T}}) where {T} = v
 fieldvalue(::Type{T}, v::Segments) where {T} = Segments{T}(v.z, v.gamma)
-fieldvalue(::Type{T}, v::Tuple) where {T} = map(w -> fieldvalue(T, w), v)
+# The same for a field of type `F`: only a field that takes `T` or a shape is converted.
+function fieldvalue(::Type{T}, ::Type{F}, v) where {T, F}
+    F !== T && T <: F && return fieldvalue(T, v)
+    F <: Tuple && v isa Tuple && return map(w -> fieldvalue(T, eltype(F), w), v)
+    return v
+end
 
 # Fraction of the window that has passed, or nothing outside the window.
 function window(f, t)

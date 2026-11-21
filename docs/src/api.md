@@ -13,6 +13,7 @@ CurrentModule = CLASSmodel
 | [`mixed_layer_profile`](@ref) | theta and q profiles at one output row |
 | [`FluxShape`](@ref) | surface flux that changes in time: [`Sine`](@ref), [`Cosine`](@ref), [`Block`](@ref), [`Table`](@ref), [`Sun`](@ref), [`Deposition`](@ref) |
 | [`Segments`](@ref) | lapse rate that changes with height |
+| [`Reaction`](@ref) | one reaction of the chemistry scheme |
 | [`PhysicalConstants`](@ref) | physical constants, passed with `constants` |
 | [`AGsParameters`](@ref), [`PlantType`](@ref), [`C3`](@ref), [`C4`](@ref) | plant parameters of the A-Gs scheme |
 
@@ -36,6 +37,7 @@ Table
 Sun
 Deposition
 Segments
+Reaction
 PhysicalConstants
 AGsParameters
 PlantType

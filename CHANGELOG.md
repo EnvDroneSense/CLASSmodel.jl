@@ -20,12 +20,16 @@ An entry outside "Changes to model results" leaves results unchanged.
 
 ### Breaking changes
 
+- The inputs `sw_reactions` and `stocoef` are removed. The input `reactions` is a vector of `Reaction`
+  (default `CLASSmodel.REACTIONS`). Leave a reaction out to switch it off; the OH yield of r19 is the
+  coefficient of OH in its `Reaction`. `phi` and `k_r05` are `NaN` when the scheme has no `:r05` or `:r21`.
 - The inputs `sinperiod`, `sw_wtheta`, `sw_wq` and `sw_wC` are removed. Give `wtheta`, `wq`,
   `wCO2` or an entry of `wC` a `FluxShape` instead: `sw_wtheta = true` with `sinperiod = P`
   becomes `wtheta = Sine(wtheta; period = P)`, and `sw_wC` 2 becomes `Sun(wC)`.
 
 ### Features
 
+- `Reaction` is exported: a user can give `reactions` a scheme of their own.
 - Encroachment: a run with `dtheta = 0`, `beta = 0` and `dq = 0` has no inversion and the layer grows
   into the stable air above it, `h^2 = h0^2 + 2 wtheta t / gammatheta`. Before, `dtheta = 0` was an error.
   It is still an error with `sw_cu`.

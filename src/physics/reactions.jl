@@ -1,9 +1,15 @@
-# The 28 gas-phase reactions of the chemistry scheme and the production and loss terms
-# built from them.
+# The gas-phase reactions of the chemistry scheme and the production and loss terms built
+# from them.
 
-# One reaction. `inputs` and `outputs` map a species to its coefficient. `form` selects the
-# rate expression (see `rate_constants!`); a photolysis reaction (`photolysis`) depends on the
-# solar elevation instead of the temperature. `k` holds the constants A to G of the rate.
+"""
+    Reaction(name, photolysis, form, inputs, outputs, k)
+
+One reaction of the chemistry. `inputs` and `outputs` map a species to its coefficient (at
+most two inputs). `form` selects the rate expression (see `rate_constants!`); a photolysis
+reaction depends on the solar elevation instead of the temperature. `k` holds the constants
+A to G of the rate. The input `reactions` of `ModelInput` is a vector of these; the default
+is `CLASSmodel.REACTIONS`. `phi` and `k_r05` in the output use the reactions `:r05` and `:r21`.
+"""
 struct Reaction
     name::Symbol
     photolysis::Bool
@@ -13,7 +19,7 @@ struct Reaction
     k::NTuple{7, Float64}
 end
 
-# The table of the C++ model. The coefficient of OH in r19 is the input `stocoef`.
+# The table of the C++ model. The coefficient of OH in r19 is its yield, zero by default.
 const REACTIONS = [
     Reaction(:r01, true, 2, [:O3 => 1], [:O1D => 1.0, :O2 => 1.0],
         (3.171e-4, -1.809, 1.2, 1.0, 1.0, 1.0, 1.0)),
@@ -74,8 +80,6 @@ const REACTIONS = [
     Reaction(:r28, false, 2, [:OH => 1, :O3 => 1], [:HO2 => 1.0, :O2 => 1.0],
         (1.7e-12, -940.0, 1.0, 1.0, 1.0, 1.0, 1.0))
 ]
-@assert length(REACTIONS) == NREACTIONS
-@assert all(length(r.inputs) <= 2 for r in REACTIONS)
 
 # Species that the solver leaves alone: the inert gases, H2O (set from q) and a pure product.
 const NOT_SOLVED = (:N2, :O2, :H2O, :Product)
@@ -93,42 +97,41 @@ end
 
 # The reactions that run and, for each species, the terms of its production and loss.
 struct ChemistryScheme{T}
-    active::Vector{Bool}
+    reactions::Vector{Reaction}
     terms::Vector{Vector{Term{T}}}
     solved::Vector{Int}
 end
 
 function ChemistryScheme{T}() where {T}
     return ChemistryScheme{T}(
-        fill(false, NREACTIONS), [Term{T}[] for _ in 1:NSPECIES], Int[])
+        Reaction[], [Term{T}[] for _ in 1:NSPECIES], Int[])
 end
 
 """
-    chemistry_scheme(x::ModelInput) -> ChemistryScheme
+    ChemistryScheme{T}(reactions)
 
-Build the production and loss terms of the reactions that `x.sw_reactions` switches on. The loss of
-an input species is the reaction rate divided by that species, so that the solver can treat
-it implicitly.
+Build the production and loss terms of `reactions`. The loss of an input species is the
+reaction rate divided by that species, so that the solver can treat it implicitly.
 """
-function chemistry_scheme(x::ModelInput{T}) where {T}
+function ChemistryScheme{T}(reactions::Vector{Reaction}) where {T}
+    all(r -> length(r.inputs) <= 2, reactions) ||
+        throw(ArgumentError("a reaction has at most two input species"))
     terms = [Term{T}[] for _ in 1:NSPECIES]
     function term(production, r, coef, factors)
         f = filter(>(0) ∘ last, factors)
         f = [f; fill((1, 0), 2 - length(f))]
         return Term{T}(production, r, coef, f[1][1], f[1][2], f[2][1], f[2][2])
     end
-    for (r, rx) in enumerate(REACTIONS)
-        x.sw_reactions[r] || continue
+    for (r, rx) in enumerate(reactions)
         inputs = [(species_index(n), c) for (n, c) in rx.inputs]
         for (k, (i, c)) in enumerate(inputs)
             factors = [(j, kk == k ? e - 1 : e) for (kk, (j, e)) in enumerate(inputs)]
             push!(terms[i], term(false, r, T(c), factors))
         end
         for (n, c) in rx.outputs
-            coef = rx.name == :r19 && n == :OH ? T(x.stocoef) : T(c)
-            push!(terms[species_index(n)], term(true, r, coef, inputs))
+            push!(terms[species_index(n)], term(true, r, T(c), inputs))
         end
     end
     solved = [i for i in 1:NSPECIES if !isempty(terms[i]) && !(SPECIES[i] in NOT_SOLVED)]
-    return ChemistryScheme{T}(collect(x.sw_reactions), terms, solved)
+    return ChemistryScheme{T}(reactions, terms, solved)
 end

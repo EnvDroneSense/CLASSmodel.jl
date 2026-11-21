@@ -5,7 +5,6 @@ const SPECIES = (:Inert, :O3, :O1D, :NO, :NO2, :CH4, :CH2O, :CH3O2, :MVK, :ISO, 
     :HO2, :CO, :H2O, :Product, :O2, :N2, :HNO3, :H2O2, :NO3, :N2O5)
 const NSPECIES = length(SPECIES)
 species_index(name) = something(findfirst(==(name), SPECIES))
-const NREACTIONS = 28   # reactions of the chemistry scheme, see reactions.jl
 # default mixing ratios [ppb] and surface fluxes [ppb m s-1]
 const SPECIES_ZERO = ntuple(_ -> 0.0, NSPECIES)
 const SPECIES_C0 = float.((
@@ -106,7 +105,7 @@ fluxes. The input is checked when it is constructed (see [`validate`](@ref)).
 | mixed layer | `h`, `Ps`, `divU`, `fc`, `beta` |
 | heat, moisture, CO2 | `theta`, `dtheta`, `gammatheta`, `advtheta`, `wtheta`, `q`, `dq`, `gammaq`, `advq`, `wq`, `CO2`, `dCO2`, `gammaCO2`, `advCO2`, `wCO2` |
 | chemical species | `C`, `dC`, `gammaC`, `advC`, `wC` (one value for each of the 22 species) |
-| chemistry | `sw_chem`, `sw_chem_constant`, `sw_photo_constant`, `sw_reactions` (one switch for each of the 28 reactions), `tod_ref`, `Tcbl_ref`, `Tft_ref`, `qcbl_ref`, `qft_ref`, `P_ref`, `stocoef` |
+| chemistry | `sw_chem`, `sw_chem_constant`, `sw_photo_constant`, `reactions`, `tod_ref`, `Tcbl_ref`, `Tft_ref`, `qcbl_ref`, `qft_ref`, `P_ref` |
 | wind | `u`, `du`, `gammau`, `advu`, `v`, `dv`, `gammav`, `advv` |
 | surface layer | `ustar`, `z0m`, `z0h` |
 | radiation | `lat`, `lon`, `doy`, `tstart`, `cc`, `Q`, `dFz` |
@@ -123,11 +122,10 @@ Notes:
 - `c_beta = 0` is a linear water stress response.
 - The 22 species of `CLASSmodel.SPECIES` are in ppb. `Inert` takes part in no reaction: it is the
   passive scalar. Without `sw_chem` all species are passive.
-- `sw_chem` runs the reactions of `sw_reactions` (see `chemistry!`). `sw_chem_constant`
+- `sw_chem` runs the `reactions`, a vector of [`Reaction`](@ref) (see `chemistry!`). `sw_chem_constant`
   takes pressure, temperature and humidity from the reference state (`P_ref`, `Tcbl_ref`, `Tft_ref`,
   `qcbl_ref`, `qft_ref`: mixed layer and free troposphere) and not from the mixed layer.
   `sw_photo_constant` fixes the sun of the photolysis at the hour `tod_ref` [h UTC] in the day.
-  `stocoef` is the OH yield of the reaction RO2 + HO2.
 - `sw_curad` has an effect only with `sw_cu` and `sw_rad`; without it, radiation uses `cc`.
 - `sw_sea` has an effect only with `sw_ls`: fixed `Ts`, open-water evaporation, no soil.
 """
@@ -187,14 +185,13 @@ Base.@kwdef struct ModelInput{T <: Real}
     # chemistry, used with sw_chem
     sw_chem_constant::Bool = true   # rates at the reference state instead of the mixed layer
     sw_photo_constant::Bool = true  # photolysis with the sun at tod_ref in the day
-    sw_reactions::NTuple{NREACTIONS, Bool} = ntuple(_ -> true, NREACTIONS)   # reactions r01 to r28
+    reactions::Vector{Reaction} = REACTIONS   # the reactions that run
     tod_ref::T = 12                 # reference time of the day for the photolysis [h UTC]
     Tcbl_ref::T = 298               # reference temperature of the mixed layer [K]
     Tft_ref::T = 298                # reference temperature of the free troposphere [K]
     qcbl_ref::T = 0.010             # reference specific humidity of the mixed layer [kg kg-1]
     qft_ref::T = 0.010              # reference specific humidity of the free troposphere [kg kg-1]
     P_ref::T = 100000               # reference pressure [Pa]
-    stocoef::T = 0                  # OH yield of RO2 + HO2 [-]
 
     # wind
     u::T = 6                    # initial mixed-layer u-wind speed [m s-1]
@@ -254,9 +251,7 @@ Base.@kwdef struct ModelInput{T <: Real}
     dz_h::T = 150               # transition layer thickness [m]
 
     function ModelInput{T}(args...) where {T <: Real}
-        special = (:wtheta, :wq, :wCO2, :wC, :gammatheta, :gammaq, :gammaCO2, :gammau, :gammav)
-        input = new{T}((n in special ? fieldvalue(T, v) : v
-        for (n, v) in zip(fieldnames(ModelInput), args))...)
+        input = new{T}(map((F, v) -> fieldvalue(T, F, v), fieldtypes(ModelInput{T}), args)...)
         validate(input)
         return input
     end
@@ -275,7 +270,7 @@ Throw an `ArgumentError` if `input` cannot be run. Called by the
   `dtheta = 0` with `beta = 0` and `dq = 0` selects encroachment
 - `0 <= cc <= 1`, `0 <= cveg <= 1`, `0 <= c_beta <= 1`
 - `C >= 0` for every species
-- `0 <= tod_ref <= 24`, `P_ref`, `Tcbl_ref`, `Tft_ref` > 0, `qcbl_ref`, `qft_ref`, `stocoef` >= 0
+- `0 <= tod_ref <= 24`, `P_ref`, `Tcbl_ref`, `Tft_ref` > 0, `qcbl_ref`, `qft_ref` >= 0
 - `ls_type` and `c3c4` have a known value
 - with `sw_ls` and not `sw_sea`: `LAI`, `Wmax`, `wg` > 0, `0 < w2 < wsat` and `wwilt < wfc <= wsat`
 - with `sw_cu`: `dz_h > 0`
@@ -300,7 +295,7 @@ function validate(x::ModelInput)
     end
     check(all(>=(0), x.C), :C, ">= 0")
     foreach(positive, (:runtime, :dt, :h, :Ps, :P_ref, :Tcbl_ref, :Tft_ref))
-    foreach(nonnegative, (:qcbl_ref, :qft_ref, :stocoef))
+    foreach(nonnegative, (:qcbl_ref, :qft_ref))
     check(0 <= x.tod_ref <= 24, :tod_ref, "in [0, 24]")
     foreach(positive, (:z0m, :z0h))
     x.runtime >= x.dt || throw(ArgumentError("runtime must be at least dt"))

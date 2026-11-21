@@ -166,8 +166,9 @@ mutable struct ChemistryState{T <: Real}
 end
 
 function ChemistryState(x::ModelInput{T}) where {T}
-    scheme = x.sw_chem ? chemistry_scheme(x) : ChemistryScheme{T}()
-    return ChemistryState{T}(scheme, zeros(T, NREACTIONS), zeros(T, NREACTIONS),
+    scheme = x.sw_chem ? ChemistryScheme{T}(x.reactions) : ChemistryScheme{T}()
+    n = length(scheme.reactions)
+    return ChemistryState{T}(scheme, zeros(T, n), zeros(T, n),
         zeros(T, NSPECIES), zeros(T, NSPECIES), zeros(T, NSPECIES), zero(T), zero(T))
 end
 

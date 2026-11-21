@@ -5,6 +5,8 @@
         y = ModelInput{Float32}(; h = 300)
         @test y isa ModelInput{Float32} && y.h === 300.0f0
         @test PhysicalConstants{Float32}().g === 9.81f0
+        @test ModelInput{Float32}(; wtheta = Sine(0.1)).wtheta isa Sine{Float64}
+        @test ModelInput{Float32}(; gammatheta = Segments([1.0], [0.0, 1.0])).gammatheta isa Segments{Float32}
         @test AGsParameters(C3()) isa AGsParameters{Float64}
         @test AGsParameters{Float32}(C4()) isa AGsParameters{Float32}
     end
@@ -19,6 +21,8 @@
                       all(e -> info.min <= e <= info.max, v)
             elseif v isa Symbol
                 @test v in info.options
+            elseif v isa Vector    # the reactions: a title only
+                @test info.title isa String
             elseif v isa Bool
                 @test info.min === nothing && info.max === nothing
             else
@@ -42,7 +46,7 @@
             (; sw_ls = true, w2 = 0.472), (; sw_cu = true, dz_h = 0),
             (; theta = NaN), (; fc = Inf), (; dq = NaN),
             (; C = ntuple(_ -> -1.0, 22)), (; wC = ntuple(_ -> NaN, 22)),
-            (; stocoef = -1), (; tod_ref = 25), (; P_ref = 0), (; qcbl_ref = -0.1)
+            (; tod_ref = 25), (; P_ref = 0), (; qcbl_ref = -0.1)
         )
         for kw in invalid
             @test_throws ArgumentError ModelInput(; kw...)

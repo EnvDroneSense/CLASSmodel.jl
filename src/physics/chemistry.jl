@@ -3,8 +3,11 @@
 const MW_AIR = 28.97   # molar mass of dry air [g mol-1]
 const MW_H2O = 18.0    # molar mass of water [g mol-1]
 const I_H2O, I_NO, I_NO2, I_O3 = species_index.((:H2O, :NO, :NO2, :O3))
-const I_R05 = something(findfirst(r -> r.name == :r05, REACTIONS))   # NO2 photolysis
-const I_R21 = something(findfirst(r -> r.name == :r21, REACTIONS))   # NO + O3
+# Rate constant of the reaction `name`, or NaN when the scheme does not have it.
+function rate_of(K, scheme::ChemistryScheme, name)
+    r = findfirst(rx -> rx.name == name, scheme.reactions)
+    return r === nothing ? oftype(zero(eltype(K)), NaN) : K[r]
+end
 
 # Specific humidity [kg kg-1] as a mixing ratio of H2O [ppb].
 h2o_ppb(q) = q * 1e9 * MW_AIR / MW_H2O
@@ -20,11 +23,7 @@ is multiplied by `cloud`. The forms: 1 `A`, 2 `A exp(B/T)`, 4 and 5 a pressure f
 function rate_constants!(K, scheme::ChemistryScheme, p, T, q, coszen, cloud)
     q_ppb = h2o_ppb(q)
     conv = 6.023e8 * (p / 100) / (8.314e-2 * T)   # molecules cm-3 per ppb
-    for (r, rx) in enumerate(REACTIONS)
-        if !scheme.active[r]
-            K[r] = 0
-            continue
-        end
+    for (r, rx) in enumerate(scheme.reactions)
         A, B, C, D, E, F, G = rx.k
         if rx.photolysis
             K[r] = coszen > 0 ? cloud * (A * exp(B / coszen)) : zero(coszen)
@@ -102,9 +101,9 @@ function chemistry!(s::ModelState, dt)
     @. ch.fsc = sp.C + sp.dC   # before C changes
     solve_chemistry!(y, ch.y0, sp.C, q_cbl, scheme, ch.Kcbl, dt)
     copyto!(sp.C, y)
-    K05, K21 = ch.Kcbl[I_R05], ch.Kcbl[I_R21]
-    ch.phi = K05 > 1e-10 && y[I_NO2] > 1e-5 ? K21 * y[I_NO] * y[I_O3] / (K05 * y[I_NO2]) :
-             zero(K05)
+    K05, K21 = rate_of(ch.Kcbl, scheme, :r05), rate_of(ch.Kcbl, scheme, :r21)   # NO2 photolysis, NO + O3
+    ch.phi = isnan(K05 + K21) ? K05 + K21 :
+             K05 > 1e-10 && y[I_NO2] > 1e-5 ? K21 * y[I_NO] * y[I_O3] / (K05 * y[I_NO2]) : zero(K05)
     ch.k_r05 = K05
 
     solve_chemistry!(y, ch.y0, ch.fsc, q_ft, scheme, ch.Kft, dt)

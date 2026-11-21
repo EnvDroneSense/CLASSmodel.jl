@@ -22,13 +22,13 @@
     @testset "reactions" begin
         chem(; kw...) = run(; sw_chem = true, wtheta = 0, kw...)
         # no reactions: only the transport and H2O, which is set from q
-        a, b = chem(; sw_reactions = ntuple(_ -> false, 28)), run(; wtheta = 0)
+        a, b = chem(; reactions = Reaction[]), run(; wtheta = 0)
         @test all(getproperty(a, n) == getproperty(b, n)
         for n in CLASSmodel.SPECIES if n != :H2O)
         @test a.H2O[end] ≈ 0.010 * 1e9 * 28.97 / 18    # qcbl_ref
-        @test all(==(0), a.phi) && all(==(0), a.k_r05)
+        @test all(isnan, a.phi) && all(isnan, a.k_r05)   # no r05 and r21 in the scheme
         # NO2 + sun -> NO + O3 alone, without transport: the implicit step is exact
-        c = chem(; sw_reactions = ntuple(==(5), 28), sw_ml = false)
+        c = chem(; reactions = CLASSmodel.REACTIONS[5:5], sw_ml = false)
         K = c.k_r05[2]
         @test K > 0 && c.NO2[2] ≈ c.NO2[1] / (1 + 60K) &&
               c.NO[2] + c.NO2[2] ≈ c.NO[1] + c.NO2[1]
@@ -36,9 +36,18 @@
         d = run(; runtime = 86400, sw_chem = true, sw_photo_constant = false, tstart = 0,
             lat = 0, lon = 0)
         @test d.k_r05[1] == 0 && maximum(d.k_r05) > 0 && count(==(0), d.k_r05) > 400
-        # RO2 + HO2 gives OH only with stocoef
+        # RO2 + HO2 gives OH only with an OH yield in r19
         iso = (;
             wC = one_species(10, 0.5), C = ntuple(i -> i in (10, 12, 13) ? 1.0 : 0.0, 22))
-        @test chem(; iso..., stocoef = 2).OH[end] > chem(; iso..., stocoef = 0).OH[end]
+        r = CLASSmodel.REACTIONS[19]
+        yield = copy(CLASSmodel.REACTIONS)
+        yield[19] = Reaction(r.name, r.photolysis, r.form, r.inputs, [:OH => 2.0, :Product => 1.0], r.k)
+        @test chem(; iso..., reactions = yield).OH[end] > chem(; iso...).OH[end]
+        # a scheme of one new reaction: O3 decays to a product at the rate A
+        decay = [Reaction(:d1, false, 1, [:O3 => 1], [:Product => 1.0], (1e-13, 0, 0, 0, 0, 0, 0))]
+        e = chem(; reactions = decay, sw_ml = false)
+        @test 0 < e.O3[end] < e.O3[1] && all(isnan, e.k_r05)
+        @test_throws ArgumentError chem(; reactions = [Reaction(:bad, false, 1,
+            [:NO => 1, :O3 => 1, :OH => 1], [:Product => 1.0], r.k)])
     end
 end

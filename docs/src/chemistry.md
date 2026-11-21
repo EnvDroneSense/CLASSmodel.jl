@@ -40,19 +40,25 @@ Markdown.parse(join(["| Position | Species | Default `C` [ppb] | Default `wC` [p
 
 ## Chemistry
 
-`sw_chem` runs the gas-phase reactions with an implicit Gauss-Seidel solver. The scheme has 28
-reactions. `sw_reactions` holds one switch for each of them. Set a switch to `false` to turn
-that reaction off.
+`sw_chem` runs the gas-phase reactions with an implicit Gauss-Seidel solver. The input
+`reactions` is a vector of [`Reaction`](@ref). The default is `CLASSmodel.REACTIONS`, the 28
+reactions of the C++ model. To turn a reaction off, leave it out of the vector. To add one,
+append a `Reaction`. An empty vector gives transport only.
+
+```julia
+reactions = filter(r -> r.name != :r19, CLASSmodel.REACTIONS)
+x = ModelInput(; sw_chem = true, reactions)
+```
 
 | Input | Meaning |
 |:------|:--------|
 | `sw_chem_constant` | the rates use the reference state, not the mixed layer (default on) |
 | `sw_photo_constant` | the photolysis uses the sun at the hour `tod_ref` [h UTC] (default on) |
 | `P_ref`, `Tcbl_ref`, `Tft_ref`, `qcbl_ref`, `qft_ref` | reference pressure, temperature and humidity of the mixed layer and the free troposphere |
-| `stocoef` | OH yield of the reaction RO2 + HO2 |
 
 The output has two extra columns: `phi`, the photostationary state of NO, NO2 and O3, and
-`k_r05`, the NO2 photolysis rate [s-1].
+`k_r05`, the NO2 photolysis rate [s-1]. Both find the reactions `:r05` and `:r21` by name. They
+are `NaN` when the scheme does not have them.
 
 ```@example quickstart
 x = ModelInput(; runtime = 3600, sw_chem = true)
@@ -62,12 +68,13 @@ out = run_model(x)
 
 ## List of reactions
 
-The position in the table is the position in `sw_reactions`. A photolysis rate depends on the
-solar elevation and is zero at night. The OH yield of r19 is the input `stocoef`.
+The position in the table is the position in `CLASSmodel.REACTIONS`. A photolysis rate depends
+on the solar elevation and is zero at night. The OH yield of r19 is its coefficient of OH; it is
+0 in the default table. To change it, make a new `Reaction` for r19 with another coefficient.
 
 ```@eval
 using CLASSmodel, Markdown
-coef(c) = c == 0 ? "stocoef " : c == 1 ? "" : "$(isinteger(c) ? Int(c) : c) "   # r19 OH is stocoef
+coef(c) = c == 1 ? "" : "$(isinteger(c) ? Int(c) : c) "
 side(terms) = join(("$(coef(c))$s" for (s, c) in terms), " + ")
 rows = map(enumerate(CLASSmodel.REACTIONS)) do (i, r)
     "| $i | $(r.name) | $(side(r.inputs)) -> $(side(r.outputs)) | $(r.photolysis ? "yes" : "no") |"
