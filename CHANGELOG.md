@@ -18,6 +18,8 @@ An entry outside "Changes to model results" leaves results unchanged.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-21
+
 ### Breaking changes
 
 - The species are an input: `species` lists them (default the 22 of `CLASSmodel.SPECIES`). `C`, `dC`,

@@ -21,4 +21,8 @@ using CLASSmodel: flux
     out = run_model(ModelInput(; runtime = 3600, dt = 1, wtheta = 0, wq = 0, wC = dep))
     @test out.O3[end] ≈ 30 * exp(-0.01 * 3599 / 200) rtol = 1e-4
     @test all(==(200), out.h)
+    # the same for CO2, whose flux is in ppm m s-1 inside the layer
+    x0 = ModelInput()
+    co2 = run_model(ModelInput(; runtime = 3600, dt = 1, wtheta = 0, wq = 0, wCO2 = Deposition(0.01)))
+    @test co2.CO2[end] ≈ x0.CO2 * exp(-0.01 * 3599 / 200) rtol = 1e-4
 end
