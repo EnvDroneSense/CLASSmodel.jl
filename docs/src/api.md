@@ -16,6 +16,8 @@ CLASSmodel
 ModelInput
 validate
 input_info
+soil
+surface
 FluxShape
 Sine
 Cosine

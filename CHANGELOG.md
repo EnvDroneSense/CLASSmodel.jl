@@ -32,6 +32,8 @@ An entry outside "Changes to model results" leaves results unchanged.
 
 ### Features
 
+- `soil(name)` and `surface(name)` give the soil and vegetation parameters of the CLASS model GUI as
+  keywords: `ModelInput(; soil(:sand)..., surface(:maize)...)`.
 - The output columns `qsat`, `e` and `esat` have values in runs without `sw_ls`. Before, they were `NaN`.
 - `Reaction` is exported: a user can give `reactions` a scheme of their own. Its `form` is a symbol such as
   `:photolysis` or `:arrhenius`. `ModelInput` checks the reactions, finite flux shapes and `Segments`, and

@@ -29,6 +29,20 @@
         @test_throws ArgumentError input_info(:nonsense)
     end
 
+    @testset "presets" begin
+        defaults = ModelInput()
+        for name in keys(CLASSmodel.SOILS)
+            @test ModelInput(; soil(name)...) isa ModelInput
+        end
+        for name in keys(CLASSmodel.SURFACES)
+            @test ModelInput(; surface(name)...) isa ModelInput
+        end
+        @test all(getfield(defaults, k) == v for (k, v) in pairs(soil(:sandy_loam)))
+        @test all(getfield(defaults, k) == v for (k, v) in pairs(surface(:short_grass)))
+        @test ModelInput(; surface(:maize)...).c3c4 == :c4
+        @test_throws ArgumentError soil(:rock)
+    end
+
     @testset "validation" begin
         invalid = (
             (; dt = 0), (; runtime = 30, dt = 60), (; h = -1),

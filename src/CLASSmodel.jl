@@ -27,7 +27,7 @@ For a run step by step use [`init_model`](@ref) and [`step!`](@ref).
 """
 module CLASSmodel
 
-export ModelInput, PhysicalConstants, AGsParameters, PlantType, C3, C4, validate
+export ModelInput, soil, surface, PhysicalConstants, AGsParameters, PlantType, C3, C4, validate
 export ModelOutput, run_model, mixed_layer_profile, variable_info, input_info
 export ModelState, init_model, step!
 export FluxShape, Sine, Cosine, Block, Table, Sun, Deposition, Segments, Reaction
@@ -38,6 +38,7 @@ include("io/fluxes.jl")
 include("physics/reactions.jl")
 include("io/input.jl")
 include("io/input_info.jl")
+include("io/presets.jl")
 include("core/state.jl")
 include("physics/mixed_layer.jl")
 include("physics/radiation.jl")
