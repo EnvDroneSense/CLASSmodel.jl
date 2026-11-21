@@ -271,7 +271,8 @@ Throw an `ArgumentError` if `input` cannot be run. Called by the
 
 - every numeric field is finite
 - positive time step, run time, `h`, `Ps`, `z0m`, `z0h`
-- `dtheta != 0` when the mixed layer or the cumulus scheme is on
+- `dtheta != 0` when the mixed layer or the cumulus scheme is on; without cumulus,
+  `dtheta = 0` with `beta = 0` and `dq = 0` selects encroachment
 - `0 <= cc <= 1`, `0 <= cveg <= 1`, `0 <= c_beta <= 1`
 - `C >= 0` for every species
 - `0 <= tod_ref <= 24`, `P_ref`, `Tcbl_ref`, `Tft_ref` > 0, `qcbl_ref`, `qft_ref`, `stocoef` >= 0
@@ -303,8 +304,8 @@ function validate(x::ModelInput)
     check(0 <= x.tod_ref <= 24, :tod_ref, "in [0, 24]")
     foreach(positive, (:z0m, :z0h))
     x.runtime >= x.dt || throw(ArgumentError("runtime must be at least dt"))
-    (x.sw_ml || x.sw_cu) && x.dtheta == 0 &&
-        throw(ArgumentError("dtheta must be nonzero"))
+    (x.sw_ml || x.sw_cu) && x.dtheta == 0 && !(encroachment(x) && !x.sw_cu) &&
+        throw(ArgumentError("dtheta must be nonzero, or zero with beta = 0 and dq = 0 (encroachment)"))
     foreach(fraction, (:cc, :cveg, :c_beta))
     x.ls_type in (:js, :ags) ||
         throw(ArgumentError("ls_type must be :js or :ags, got :$(x.ls_type)"))

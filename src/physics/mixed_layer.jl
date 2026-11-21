@@ -73,6 +73,9 @@ function prescribed_stress!(s::ModelState)
     return nothing
 end
 
+# Encroachment: a start without an inversion and without entrainment of the air above.
+encroachment(x::ModelInput) = x.beta == 0 && x.dtheta == 0 && x.dq == 0
+
 # Tendencies of a mixed-layer scalar and of its jump at h, from the surface, entrainment and
 # cloud fluxes, the advection, the lapse rate above h and the growth relative to it.
 function scalar_tendencies(flux, flux_e, flux_M, adv, gamma, h, wrel_ft)
@@ -96,8 +99,6 @@ function mixed_layer!(s::ModelState)
     # vertical velocity that keeps the free troposphere fixed under subsidence
     ws_ft = x.sw_fixft ? ml.ws : zero(ml.ws)
 
-    ml.wf = x.dFz / (c.rho * c.cp * ml.dtheta)
-
     if ml.wthetav > 0
         ml.wstar = ((c.g * ml.h * ml.wthetav) / ml.thetav)^(1 / 3)
     else
@@ -106,7 +107,12 @@ function mixed_layer!(s::ModelState)
 
     ml.wthetave = -x.beta * ml.wthetav
 
-    if x.sw_shearwe
+    # without an inversion the layer grows into the stable air: the jump is gamma * h
+    jump = encroachment(x) ? lapse(x.gammatheta, ml.h) * ml.h : ml.dtheta
+    ml.wf = x.dFz / (c.rho * c.cp * jump)
+    if encroachment(x)
+        ml.we = ml.wthetav / jump
+    elseif x.sw_shearwe
         ml.we = (-ml.wthetave + 5 * sl.ustar^3 * ml.thetav / (c.g * ml.h)) / ml.dthetav
     else
         ml.we = -ml.wthetave / ml.dthetav

@@ -28,6 +28,17 @@ out = run_model(x)
 (H = maximum(out.H), LE = maximum(out.LE), wCO2A = minimum(out.wCO2A))
 ```
 
+## Encroachment
+
+With `dtheta = 0`, `beta = 0` and `dq = 0` there is no inversion. The mixed layer then grows into
+the stable air above it, with `we = w'thetav' / (gammatheta h)`. With a constant `gammatheta` the
+height follows `h^2 = h0^2 + 2 wtheta t / gammatheta`. `sw_cu` does not allow it.
+
+```@example quickstart
+x = ModelInput(; runtime = 3600, beta = 0, dtheta = 0, dq = 0, wq = 0)
+run_model(x).h[end]
+```
+
 ## Lapse rate that changes with height
 
 `gammatheta`, `gammaq`, `gammaCO2`, `gammau` and `gammav` take a number or

@@ -26,6 +26,9 @@ An entry outside "Changes to model results" leaves results unchanged.
 
 ### Features
 
+- Encroachment: a run with `dtheta = 0`, `beta = 0` and `dq = 0` has no inversion and the layer grows
+  into the stable air above it, `h^2 = h0^2 + 2 wtheta t / gammatheta`. Before, `dtheta = 0` was an error.
+  It is still an error with `sw_cu`.
 - `Segments(z, gamma)`: a lapse rate that changes with height for `gammatheta`, `gammaq`,
   `gammaCO2`, `gammau` and `gammav`. `mixed_layer_profile` follows the segments.
 - Surface flux shapes `Sine`, `Cosine`, `Block`, `Table`, `Sun` and `Deposition` for `wtheta`,

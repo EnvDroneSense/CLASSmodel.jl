@@ -74,6 +74,15 @@ end
         @test p.theta[end] ≈ 288 + 1 + 0.01 * 100
     end
 
+    @testset "encroachment" begin
+        # dry air without an inversion: h^2 = h0^2 + 2 wtheta t / gammatheta
+        x = ModelInput(; runtime = 3600, dt = 1, beta = 0, dtheta = 0, dq = 0, wq = 0)
+        out = run_model(x)
+        @test out.h[end] ≈ sqrt(200^2 + 2 * 0.1 * 3599 / 0.006) rtol = 1e-3
+        @test maximum(abs, out.dtheta) < 1e-9
+        @test_throws ArgumentError ModelInput(; beta = 0, dtheta = 0, dq = 0, sw_cu = true)
+    end
+
     @testset "diurnal cycle of the fluxes" begin
         # half sine, taken at the end of each step: the amplitude at period / 2, zero after
         x = (; runtime = 2500, wtheta = Sine(0.1; period = 1200), wq = Sine(1e-4; period = 1200))
