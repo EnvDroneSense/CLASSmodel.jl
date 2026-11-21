@@ -64,7 +64,7 @@ function ags!(s::ModelState)
     D0 = (p.f0 - fmin) / p.ad
     cfrac = p.f0 * (1 - (Ds / D0)) + fmin * (Ds / D0)
     cfrac < 0 && throw(DomainError(Ds,
-        "A-gs: vapour pressure deficit $Ds kPa is above f0/ad = $(p.f0 / p.ad) kPa, " *
+        "A-Gs: vapor pressure deficit $Ds kPa is above f0/ad = $(p.f0 / p.ad) kPa, " *
         "so ci falls below the CO2 compensation point"))
     co2abs = ml.CO2 / f   # ppm to mg CO2 m-3
     ci = cfrac * (co2abs - CO2comp) + CO2comp

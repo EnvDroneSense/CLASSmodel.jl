@@ -16,13 +16,13 @@ input_info(:wtheta)
 
 ## Input fields
 
-The table comes from `input_info` and the defaults of `ModelInput()`. A tuple field holds
-one value for each species or reaction. Its row gives the value of one element.
+The table comes from `input_info` and the defaults of `ModelInput()`. A vector field holds
+one value for each species or reaction. Its row gives the unit of one element.
 
 ```@eval
 using CLASSmodel, Markdown
 x = ModelInput()
-fmt(v::Tuple) = "$(length(v)) values"
+fmt(v::AbstractVector) = "$(length(v)) values"
 fmt(v) = "`$(repr(v))`"
 rows = map(fieldnames(ModelInput)) do name
     info = input_info(name)

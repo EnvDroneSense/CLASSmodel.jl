@@ -20,7 +20,7 @@ Only `sw_ml` is on by default. Switch the other components on in the input.
 | `sw_sea` | with `sw_ls`: open water at the fixed `Ts` instead of land. `G` and `LEref` are `NaN` |
 | `sw_cu` | shallow cumulus: mass flux and cloud core fraction |
 | `sw_curad` | with `sw_cu` and `sw_rad`: the cloud cover of the radiation is `2 ac` of the previous step |
-| `sw_chem` | gas-phase chemistry of the 22 species (see [Species and chemistry](chemistry.md)) |
+| `sw_chem` | gas-phase chemistry of the input species (see [Species and chemistry](chemistry.md)) |
 
 ```@example quickstart
 x = ModelInput(; sw_rad = true, sw_sl = true, sw_ls = true, ls_type = :ags, c3c4 = :c4)
@@ -63,7 +63,7 @@ the start of the run. `period` and `start` are in seconds; the defaults are 4320
 | `Cosine(a; period, start)` | `a / 2 * (1 - cos(2 pi (t - start) / period))` in the window, zero outside |
 | `Block(a; period, start)` | `a` in the window, zero outside |
 | `Table(values; interval)` | linear interpolation of `values`, one every `interval` seconds |
-| `Sun(a)` | `a` times the solar elevation divided by its noon value, zero at night |
+| `Sun(a)` | `a` times the sine of the solar elevation divided by its noon value, zero at night |
 | `Deposition(vd)` | `-vd` times the mixed-layer value, with `vd` in m s-1 |
 
 With `sw_ls`, a shape for `wtheta` or `wq` is an error: the land surface gives these fluxes.

@@ -10,7 +10,7 @@
         # a species with a jump mixes into the layer like CO2
         jump = run(; CO2 = 30, dCO2 = 2, dC = one_species(2, 2.0))
         @test jump.O3 ≈ jump.CO2
-        # flux mode 1 follows the sine, mode 2 the sun: zero at night, peak at noon
+        # a Sine flux follows the sine, a Sun flux the sun: zero at night, peak at noon
         only(shape) = map(j -> j == 1 ? shape : 0.0, 1:22)
         sine = run(; wC = only(Sine(0.1)))
         @test sine.Inert[2] - sine.Inert[1] ≈ 60 * 0.1 * sin(pi * 60 / 43200) / sine.h[1]
@@ -59,7 +59,7 @@ end
     out = run_model(x)
     @test keys(out)[end-1:end] == (:A, :B) && out.B[end] > 0
     @test isnan(out.phi[end]) && out.A[end] + out.B[end] ≈ 10
-    @test_throws ArgumentError ModelInput(; species = [:A, :B], reactions = rx, sw_chem = true)   # 22 values
+    @test_throws ArgumentError ModelInput(; species = [:A, :B], reactions = rx, sw_chem = true)   # default C has 22 values
     s = CLASSmodel.init_model(x)
     @inferred CLASSmodel.run_loop(s, CLASSmodel.empty_output(Float64, 3, x.species), 3, nothing, 100)
 end

@@ -4,45 +4,72 @@
     FluxShape
 
 A surface flux that changes in time. `wtheta`, `wq`, `wCO2` and each entry of `wC` take a
-number (constant flux) or one of `Sine`, `Cosine`, `Block`, `Table`, `Sun`, `Deposition`.
-A new shape needs one method `flux(shape, x::ModelInput, t, c)`, with `t` in seconds from
-the start of the run and `c` the mixed-layer value of the quantity.
+number (constant flux) or one of [`Sine`](@ref), [`Cosine`](@ref), [`Block`](@ref),
+[`Table`](@ref), [`Sun`](@ref), [`Deposition`](@ref). An amplitude has the unit of the flux.
+A new shape needs one method `CLASSmodel.flux(shape, x::ModelInput, t, c)`, with `t` in
+seconds from the start of the run and `c` the mixed-layer value of the quantity.
 """
 abstract type FluxShape end
 
-"`amplitude * sin(pi (t - start) / period)` between `start` and `start + period` [s], else zero."
+"""
+    Sine(amplitude; period = 43200, start = 0)
+
+`amplitude * sin(pi (t - start) / period)` between `start` and `start + period` [s], else zero.
+"""
 struct Sine{T <: Real} <: FluxShape
     amplitude::T
     period::T
     start::T
 end
 
-"`amplitude / 2 * (1 - cos(2 pi (t - start) / period))` between `start` and `start + period`."
+"""
+    Cosine(amplitude; period = 43200, start = 0)
+
+`amplitude / 2 * (1 - cos(2 pi (t - start) / period))` between `start` and `start + period` [s],
+else zero.
+"""
 struct Cosine{T <: Real} <: FluxShape
     amplitude::T
     period::T
     start::T
 end
 
-"`amplitude` between `start` and `start + period` [s], else zero."
+"""
+    Block(amplitude; period = 43200, start = 0)
+
+`amplitude` between `start` and `start + period` [s], else zero.
+"""
 struct Block{T <: Real} <: FluxShape
     amplitude::T
     period::T
     start::T
 end
 
-"Values every `interval` seconds from the start of the run, with linear interpolation."
+"""
+    Table(values; interval = 3600)
+
+One value every `interval` [s] from the start of the run, with linear interpolation. After the
+last value the flux stays at that value.
+"""
 struct Table{T <: Real} <: FluxShape
     values::Vector{T}
     interval::Float64
 end
 
-"`amplitude` times the solar elevation divided by its noon value; zero at night."
+"""
+    Sun(amplitude)
+
+`amplitude` times the sine of the solar elevation divided by its noon value. Zero at night.
+"""
 struct Sun{T <: Real} <: FluxShape
     amplitude::T
 end
 
-"Dry deposition: the flux is `-vd * c` with the deposition velocity `vd` [m s-1]."
+"""
+    Deposition(vd)
+
+Dry deposition: the flux is `-vd * c`, with the deposition velocity `vd` [m s-1].
+"""
 struct Deposition{T <: Real} <: FluxShape
     vd::T
 end
@@ -81,6 +108,12 @@ function window(f, t)
     return 0 <= p <= 1 ? p : nothing
 end
 
+"""
+    flux(shape, x::ModelInput, t, c)
+
+Flux of `shape` at `t` [s] from the start of the run, for the mixed-layer value `c`.
+A number is a constant flux.
+"""
 flux(v::Real, x, t, c) = v
 function flux(f::Sine, x, t, c)
     window(f, t) === nothing && return zero(c)

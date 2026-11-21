@@ -25,8 +25,9 @@ const SURFACES = (
     soil(name) -> NamedTuple
 
 Soil parameters of `ModelInput` for `name`: `:sandy_loam` (the default of `ModelInput`), `:sand`
-or `:clay`. Use it as `ModelInput(; soil(:sand)...)`. It does not change the soil moisture
-`wg` and `w2`.
+or `:clay`. Use it as `ModelInput(; soil(:sand)...)`. It sets `wsat`, `wfc`, `wwilt`, `a`, `b`,
+`p`, `CGsat`, `C1sat` and `C2ref`, not the soil moisture `wg` and `w2`. An unknown name throws an
+`ArgumentError`.
 """
 soil(name::Symbol) = preset(SOILS, name, "soil")
 
@@ -34,8 +35,9 @@ soil(name::Symbol) = preset(SOILS, name, "soil")
     surface(name) -> NamedTuple
 
 Vegetation and roughness parameters of `ModelInput` for `name`: `:short_grass` (the default of
-`ModelInput`), `:maize`, `:broadleaf_trees` or `:needleleaf_trees`. Grass
-and maize also set `c3c4`. Use it as `ModelInput(; surface(:maize)...)`.
+`ModelInput`), `:maize`, `:broadleaf_trees` or `:needleleaf_trees`. It sets `LAI`, `gD`, `rsmin`,
+`alpha`, `cveg`, `Lambda`, `z0m` and `z0h`. Grass and maize also set `c3c4`. Use it as
+`ModelInput(; surface(:maize)...)`. An unknown name throws an `ArgumentError`.
 """
 surface(name::Symbol) = preset(SURFACES, name, "surface")
 

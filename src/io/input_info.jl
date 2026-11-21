@@ -110,8 +110,7 @@ const INPUT_INFO = (
 
 Title, unit and symbol of the `ModelInput` field `name`, with a slider range `min` to `max`
 (not a validity rule, see [`validate`](@ref)). A switch has `min = max = nothing`, a `Symbol`
-or mode field has `options`. For a tuple field (`C`, `wC`, ...) the entry is for
-one value.
+field has `options`. For a vector field (`C`, `wC`, ...) the entry is for one value.
 """
 function input_info(name::Symbol)
     haskey(INPUT_INFO, name) || throw(ArgumentError("unknown input field :$name"))

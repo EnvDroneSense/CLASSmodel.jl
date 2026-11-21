@@ -5,7 +5,7 @@
 
 Set the prescribed surface fluxes of the step from the inputs `wtheta`, `wq`, `wCO2` and `wC`
 (a number or a [`FluxShape`](@ref)). A step uses the flux at its end. With `sw_ls` the land
-surface sets the heat and moisture fluxes, and A-gs the CO2 flux.
+surface sets the heat and moisture fluxes, and A-Gs the CO2 flux.
 """
 function prescribed_fluxes!(s::ModelState)
     x, ml, sp = s.input, s.mixed_layer, s.species
@@ -15,7 +15,8 @@ function prescribed_fluxes!(s::ModelState)
         ml.wq = flux(x.wq, x, t, ml.q)
     end
     if !(x.sw_ls && !x.sw_sea && x.ls_type == :ags)
-        ml.wCO2 = flux(x.wCO2, x, t, ml.CO2) * mg_to_ppm(s.constants)
+        f = mg_to_ppm(s.constants)   # the input flux is in mg CO2 m-2 s-1, the layer in ppm
+        ml.wCO2 = flux(x.wCO2, x, t, ml.CO2 / f) * f
     end
     for i in eachindex(sp.wC)
         sp.wC[i] = flux(x.wC[i], x, t, sp.C[i])
@@ -88,8 +89,9 @@ end
 """
     mixed_layer!(s::ModelState)
 
-Entrainment, fluxes and tendencies of the mixed layer. Without the surface layer the
-momentum fluxes follow from `ustar` and the wind direction.
+Entrainment, fluxes and tendencies of the mixed layer, the species, the wind and the
+transition layer `dz_h`. With encroachment the jump is `gammatheta * h`. Without the surface
+layer the momentum fluxes follow from `ustar` and the wind direction.
 """
 function mixed_layer!(s::ModelState)
     x, c, ml, w, sl, cu = s.input, s.constants, s.mixed_layer, s.wind, s.surface_layer,
@@ -150,11 +152,12 @@ function mixed_layer!(s::ModelState)
         w.dvtend = lapse(x.gammav, ml.h) * wrel - w.vtend
     end
 
+    # dz_h relaxes to lcl - h with a 2 h time scale when clouds exist or lcl - h < 300 m
     cu.dztend = cu.ac > 0 || ml.lcl - ml.h < 300 ? ((ml.lcl - ml.h) - cu.dz_h) / 7200 : zero(cu.dztend)
     return s
 end
 
-"Advance the mixed-layer variables by one forward Euler step."
+"Advance the mixed layer, the species, `dz_h` and (with `sw_wind`) the wind by one forward Euler step."
 function integrate_mixed_layer!(s::ModelState)
     x, ml, w, cu = s.input, s.mixed_layer, s.wind, s.cumulus
     dt = x.dt

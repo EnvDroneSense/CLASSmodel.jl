@@ -5,7 +5,9 @@
     Reaction(name, form, inputs, outputs, k)
 
 One reaction of the chemistry. `inputs` and `outputs` map a species to its coefficient (at
-most two inputs). `k` holds the constants A to G of the rate, which `form` selects:
+most two inputs). `k` holds the constants A to G of the rate, which `form` selects. `T` is the
+temperature [K]. A photolysis rate is in s-1. For the other forms `A` is in molecule-based
+units (cm3 molecule-1 s-1 for a two-body reaction), and the model converts the rate to ppb.
 
 | `form` | rate constant |
 |:-------|:--------------|
@@ -16,9 +18,9 @@ most two inputs). `k` holds the constants A to G of the rate, which `form` selec
 | `:ho2` | HO2 + HO2, with a water term |
 | `:power` | `A (T / B)^C exp(D / T)` |
 
-The input `reactions` of `ModelInput` is
-a vector of these; the default is `CLASSmodel.REACTIONS`. `phi` and `k_r05` in the output use
-the reactions `:r05` and `:r21`.
+The input `reactions` of `ModelInput` is a vector of these. The default is
+[`CLASSmodel.REACTIONS`](@ref). `phi` and `k_r05` in the output use the reactions `:r05` and
+`:r21`.
 """
 struct Reaction
     name::Symbol
@@ -40,7 +42,13 @@ function check_reaction(rx::Reaction, species)
     end
 end
 
-# The table of the C++ model. The coefficient of OH in r19 is its yield, zero by default.
+"""
+    CLASSmodel.REACTIONS
+
+The 28 default reactions, the default of the `ModelInput` field `reactions`. They use the
+species of [`CLASSmodel.SPECIES`](@ref). The coefficient of OH in `:r19` is its OH yield,
+zero by default.
+"""
 const REACTIONS = [
     Reaction(:r01, :photolysis, [:O3 => 1], [:O1D => 1.0, :O2 => 1.0],
         (3.171e-4, -1.809, 1.2, 1.0, 1.0, 1.0, 1.0)),

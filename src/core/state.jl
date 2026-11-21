@@ -158,8 +158,12 @@ end
 """
     ModelState{T}
 
-State of a running model: the fixed `input` and `constants`, the number of completed steps
-`t` and the state of each component.
+State of a running model: the fixed `input`, `constants` and `plant`, the number of
+completed steps `t` and one state per component: `mixed_layer` ([`MixedLayerState`](@ref)),
+`wind` ([`WindState`](@ref)), `radiation` ([`RadiationState`](@ref)), `surface_layer`
+([`SurfaceLayerState`](@ref)), `land_surface` ([`LandSurfaceState`](@ref)), `cumulus`
+([`CumulusState`](@ref)), `species` ([`SpeciesState`](@ref)) and `chemistry`
+([`ChemistryState`](@ref)).
 """
 mutable struct ModelState{T <: Real}
     input::ModelInput{T}
@@ -177,10 +181,10 @@ mutable struct ModelState{T <: Real}
 end
 
 """
-    init_model(input; constants = PhysicalConstants{T}(), plant = ...) -> ModelState
+    init_model(input; constants = PhysicalConstants{T}(), plant = <preset of input.c3c4>) -> ModelState
 
 Build the initial state from `input` and compute the initial diagnostics. `plant` holds the
-A-Gs parameters; the default is the preset of `input.c3c4`.
+A-Gs parameters. The default is [`C3`](@ref) or [`C4`](@ref), as `input.c3c4` selects.
 """
 function init_model(x::ModelInput{T};
         constants::PhysicalConstants{T} = PhysicalConstants{T}(),

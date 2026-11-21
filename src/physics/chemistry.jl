@@ -1,4 +1,4 @@
-# Gas-phase chemistry of the 22 species: rate constants and the solver. Mixing ratios in ppb.
+# Gas-phase chemistry of the input species: rate constants and the solver. Mixing ratios in ppb.
 
 const MW_AIR = 28.97   # molar mass of dry air [g mol-1]
 const MW_H2O = 18.0    # molar mass of water [g mol-1]
@@ -15,8 +15,8 @@ h2o_ppb(q) = q * 1e9 * MW_AIR / MW_H2O
     rate_constants!(K, scheme, p, T, q, coszen, cloud)
 
 Fill `K` with the rate constants [s-1, ppb-1 s-1] of the reactions of `scheme` at pressure
-`p` [Pa], temperature `T` [K] and specific humidity `q`. A photolysis rate is multiplied by
-`cloud`. The forms are in [`Reaction`](@ref).
+`p` [Pa], temperature `T` [K] and specific humidity `q` [kg kg-1]. `coszen` is the cosine
+of the solar zenith angle [-]. A photolysis rate is multiplied by `cloud` [-]. The forms are in [`Reaction`](@ref).
 """
 function rate_constants!(K, scheme::ChemistryScheme, p, T, q, coszen, cloud)
     q_ppb = h2o_ppb(q)
@@ -73,7 +73,7 @@ end
 """
     chemistry!(s::ModelState, dt)
 
-Advance the species by `dt` in the mixed layer and in the free troposphere (`C + dC`), and
+Advance the species by `dt` [s] in the mixed layer and in the free troposphere (`C + dC`), and
 set `dC` from the two. H2O follows `q`. Also store `phi`, the photostationary state of NO,
 NO2 and O3, and `k_r05`, the NO2 photolysis rate. See `ModelInput` for the switches.
 """

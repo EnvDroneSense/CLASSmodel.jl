@@ -4,7 +4,8 @@
     Segments(z, gamma)
 
 A lapse rate that changes with height: `gamma[i]` holds below `z[i]` [m] and `gamma[end]`
-above `z[end]`, so `gamma` has one entry more than the ascending `z`. `gammatheta`, `gammaq`,
+above `z[end]`, so `gamma` has one entry more than the ascending `z`. `gamma` has the unit
+of the lapse rate field. `gammatheta`, `gammaq`,
 `gammaCO2`, `gammau` and `gammav` take a number or `Segments`.
 """
 struct Segments{T <: Real}

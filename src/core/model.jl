@@ -40,7 +40,7 @@ end
     step!(s::ModelState)
 
 Advance the model by one time step: compute the components, then integrate the
-land surface and the mixed layer. The diagnostics of the step are left in `s`.
+land surface, the mixed layer and the chemistry. The diagnostics of the step are left in `s`.
 """
 function step!(s::ModelState)
     compute!(s)
@@ -53,8 +53,10 @@ end
         progress_every = 100) -> ModelOutput
 
 Run the model for `floor(runtime / dt)` steps and return the time series. Each row holds
-the state before the time step is integrated. With `ls_type = :ags` it throws a `DomainError`
-when the vapour pressure deficit is above `f0 / ad` (C3 12.7 kPa, C4 5.7 kPa).
+the state before the time step is integrated. The columns are the base variables, then one
+mixing ratio [ppb] for each name in `input.species` (see [`ModelOutput`](@ref)). `constants`
+and `plant` go to [`init_model`](@ref). With `ls_type = :ags` it throws a `DomainError`
+when the vapor pressure deficit is above `f0 / ad` (C3 12.7 kPa, C4 5.7 kPa).
 
 `progress(i, n, out)` is called after every `progress_every` steps and after the last step
 `n`. The rows after `i` of `out` are still zero. If it returns `false`, the run stops and the

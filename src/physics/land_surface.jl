@@ -105,7 +105,7 @@ function land!(s::ModelState)
     return nothing
 end
 
-"Forward Euler step of the soil temperature, soil moisture and wet-leaf water layer."
+"Forward Euler step of the soil temperature, soil moisture and wet-leaf water layer; none with `sw_sea`."
 function integrate_land_surface!(s::ModelState)
     ls, dt = s.land_surface, s.input.dt
     s.input.sw_sea && return nothing

@@ -25,7 +25,7 @@ using CLASSmodel: E1
     @test run_model(inp; plant = AGsParameters(C3())).wCO2A == out.wCO2A
     @test run_model(inp; plant = AGsParameters(C4())).wCO2A == c4.wCO2A
 
-    # a vapour pressure deficit above f0/ad has no valid ci
+    # a vapor pressure deficit above f0/ad has no valid ci
     @test_throws r"f0/ad" ags(
         c3c4 = :c4, q = 0.002, theta = 310, Ts = 310, Tsoil = 310, T2 = 310)
 

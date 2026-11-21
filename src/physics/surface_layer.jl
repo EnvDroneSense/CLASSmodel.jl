@@ -36,7 +36,7 @@ effective_wind(s::ModelState) = sqrt(s.wind.u^2 + s.wind.v^2 + s.mixed_layer.wst
     ribtol(Rib, zsl, z0m, z0h)
 
 Obukhov length [m] for the bulk Richardson number `Rib` at height `zsl`, by Newton iteration
-from `L = ±1`. It stops at a 1 mm change, `|L| > 1e15` (neutral) or 100 iterations (warns).
+from `L = 1` or `L = -1` (the sign of `Rib`). It stops at a 1 mm change, `|L| > 1e15` (neutral) or 100 iterations (warns).
 """
 function ribtol(Rib, zsl, z0m, z0h)
     L, L0 = Rib > 0 ? (one(Rib), 2 * one(Rib)) : (-one(Rib), -2 * one(Rib))

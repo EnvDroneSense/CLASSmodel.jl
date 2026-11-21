@@ -27,6 +27,8 @@ Sun
 Deposition
 Segments
 Reaction
+CLASSmodel.REACTIONS
+CLASSmodel.SPECIES
 PhysicalConstants
 AGsParameters
 PlantType
@@ -41,6 +43,14 @@ run_model
 init_model
 step!
 ModelState
+MixedLayerState
+WindState
+RadiationState
+SurfaceLayerState
+LandSurfaceState
+CumulusState
+SpeciesState
+ChemistryState
 ```
 
 ## Output

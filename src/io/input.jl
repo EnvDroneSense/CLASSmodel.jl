@@ -1,7 +1,12 @@
 # Model input, physical constants and A-Gs plant parameters.
 
-# The 22 chemical species, in the order of the input tuples and of the output columns.
-const SPECIES = (:Inert, :O3, :O1D, :NO, :NO2, :CH4, :CH2O, :CH3O2, :MVK, :ISO, :RO2, :OH,
+"""
+    CLASSmodel.SPECIES
+
+The 22 default chemical species, the default of the `ModelInput` field `species`. The vectors
+`C`, `dC`, `gammaC`, `advC` and `wC` and the species columns of the output follow this order.
+"""
+const SPECIES =(:Inert, :O3, :O1D, :NO, :NO2, :CH4, :CH2O, :CH3O2, :MVK, :ISO, :RO2, :OH,
     :HO2, :CO, :H2O, :Product, :O2, :N2, :HNO3, :H2O2, :NO3, :N2O5)
 const NSPECIES = length(SPECIES)
 # default mixing ratios [ppb] and surface fluxes [ppb m s-1]
@@ -37,7 +42,7 @@ Base.@kwdef struct PhysicalConstants{T <: Real}
     k::T = 0.4              # Von Karman constant [-]
     g::T = 9.81             # gravity acceleration [m s-2]
     Rd::T = 287             # gas constant for dry air [J kg-1 K-1]
-    Rv::T = 461.5           # gas constant for moist air [J kg-1 K-1]
+    Rv::T = 461.5           # gas constant for water vapor [J kg-1 K-1]
     bolz::T = 5.67e-8       # Stefan-Boltzmann constant [W m-2 K-4]
     rhow::T = 1000          # density of water [kg m-3]
     S0::T = 1368            # solar constant [W m-2]
@@ -64,11 +69,11 @@ Base.@kwdef struct AGsParameters{T <: Real}
     gm298::T        # mesophyll conductance at 298 K [mm s-1]
     Ammax298::T     # maximal primary productivity [mg m-2 s-1]
     Q10gm::T        # parameter of the mesophyll conductance [-]
-    T1gm::T         # reference temperature of the mesophyll conductance [K]
-    T2gm::T         # reference temperature of the mesophyll conductance [K]
+    T1gm::T         # lower reference temperature of the mesophyll conductance [K]
+    T2gm::T         # upper reference temperature of the mesophyll conductance [K]
     Q10Am::T        # parameter of the maximal primary productivity [-]
-    T1Am::T         # reference temperature of the maximal primary productivity [K]
-    T2Am::T         # reference temperature of the maximal primary productivity [K]
+    T1Am::T         # lower reference temperature of the maximal primary productivity [K]
+    T2Am::T         # upper reference temperature of the maximal primary productivity [K]
     f0::T           # maximum value of Cfrac [-]
     ad::T           # regression coefficient of Cfrac [kPa-1]
     alpha0::T       # initial low light conditions [mg J-1]
@@ -112,7 +117,10 @@ fluxes. The input is checked when it is constructed (see [`validate`](@ref)).
 | cumulus | `dz_h` |
 
 Notes: `wtheta`, `wq`, `wCO2` and each entry of `wC` take a number or a [`FluxShape`](@ref). The `gamma*` fields
-take a number or [`Segments`](@ref). `wCO2` is in mg CO2 m-2 s-1. See the switches and chemistry pages.
+take a number or [`Segments`](@ref). `wCO2` is in mg CO2 m-2 s-1. With `dtheta = 0`, `beta = 0`
+and `dq = 0` the mixed layer grows by encroachment (not with `sw_cu`): it has no inversion and
+the jump is `gammatheta * h`. Use [`soil`](@ref) and [`surface`](@ref) for preset parameter sets. See the
+switches and chemistry pages.
 """
 Base.@kwdef struct ModelInput{T <: Real}
     # time
@@ -247,8 +255,9 @@ ModelInput(args...) = ModelInput{Float64}(args...)
 """
     validate(input::ModelInput)
 
-Throw an `ArgumentError` if `input` cannot be run. Called by the [`ModelInput`](@ref) constructor.
-The checks are in the code below: finite values, ranges, and the switch combinations that need each other.
+Throw an `ArgumentError` if `input` cannot be run. The [`ModelInput`](@ref) constructor calls it.
+It checks finite values, ranges, one value per species, the reactions and the switches that
+need each other.
 """
 function validate(x::ModelInput)
     function check(ok, name, rule)
