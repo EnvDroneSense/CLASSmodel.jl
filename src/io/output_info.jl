@@ -81,6 +81,9 @@ const BASE_INFO = (
 const VARIABLE_INFO = merge(BASE_INFO,
     NamedTuple(n => info("$n mixing ratio", "ppb", String(n)) for n in SPECIES))
 
+# Names of the output variables, in the order of the columns.
+const OUTPUT_NAMES = keys(VARIABLE_INFO)
+
 """
     variable_info(name::Symbol) -> NamedTuple
 

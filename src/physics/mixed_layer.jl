@@ -26,9 +26,7 @@ end
 """
     statistics!(s::ModelState)
 
-Virtual temperatures, values at the top of the mixed layer and the lifting
-condensation level (LCL). The LCL is found by a fixed-point iteration: it restarts
-from `h` at the first step and otherwise continues from the previous value.
+Virtual temperatures, values at the top of the mixed layer and the lifting condensation level.
 """
 function statistics!(s::ModelState)
     x, c, ml = s.input, s.constants, s.mixed_layer
@@ -99,18 +97,15 @@ function mixed_layer!(s::ModelState)
     # vertical velocity that keeps the free troposphere fixed under subsidence
     ws_ft = x.sw_fixft ? ml.ws : zero(ml.ws)
 
-    if ml.wthetav > 0
-        ml.wstar = ((c.g * ml.h * ml.wthetav) / ml.thetav)^(1 / 3)
-    else
-        ml.wstar = 1e-6
-    end
+    ml.wstar = ml.wthetav > 0 ? ((c.g * ml.h * ml.wthetav) / ml.thetav)^(1 / 3) : 1e-6
 
     ml.wthetave = -x.beta * ml.wthetav
 
     # without an inversion the layer grows into the stable air: the jump is gamma * h
-    jump = encroachment(x) ? lapse(x.gammatheta, ml.h) * ml.h : ml.dtheta
+    encr = encroachment(x)
+    jump = encr ? lapse(x.gammatheta, ml.h) * ml.h : ml.dtheta
     ml.wf = x.dFz / (c.rho * c.cp * jump)
-    if encroachment(x)
+    if encr
         ml.we = ml.wthetav / jump
     elseif x.sw_shearwe
         ml.we = (-ml.wthetave + 5 * sl.ustar^3 * ml.thetav / (c.g * ml.h)) / ml.dthetav

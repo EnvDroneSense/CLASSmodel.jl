@@ -1,7 +1,7 @@
 # Radiation: solar geometry, bulk transmissivity and net radiation.
 
-"Time [s UTC since midnight of the start day] after `step` steps."
-utc_seconds(x::ModelInput, step) = step * x.dt + x.tstart * 3600
+"Time [s UTC since midnight of the start day] for `t` seconds after the start."
+utc_seconds(x::ModelInput, t) = t + x.tstart * 3600
 
 # Sine of the solar elevation for the cosine `cos_hour` of the hour angle.
 function sine_elevation(x::ModelInput, cos_hour)
@@ -27,7 +27,7 @@ the previous step with `sw_curad`.
 function radiation!(s::ModelState)
     x, c, ml, rad = s.input, s.constants, s.mixed_layer, s.radiation
 
-    sinlea = max(solar_elevation(x, utc_seconds(x, s.t)), 0.0001)
+    sinlea = max(solar_elevation(x, utc_seconds(x, s.t * x.dt)), 0.0001)
 
     Ta = ml.theta * ((x.Ps - 0.1 * ml.h * c.rho * c.g) / x.Ps)^(c.Rd / c.cp)   # at 10 % of h
     Tr = (0.6 + 0.2 * sinlea) * (1 - 0.4 * rad.cc)

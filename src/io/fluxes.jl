@@ -86,6 +86,6 @@ function flux(f::Table, x, t, c)
     return oftype(c, f.values[i] + p * (f.values[i + 1] - f.values[i]))
 end
 function flux(f::Sun, x, t, c)
-    return f.amplitude * max(solar_elevation(x, t + x.tstart * 3600), 0) / solar_elevation_max(x)
+    return f.amplitude * max(solar_elevation(x, utc_seconds(x, t)), 0) / solar_elevation_max(x)
 end
 flux(f::Deposition, x, t, c) = -f.vd * c

@@ -1,15 +1,5 @@
 # Output table: names, type, storage of a step and the mixed-layer profile.
 
-# Names of the output variables, in the order of the columns.
-const OUTPUT_NAMES = (
-    :t, :h, :theta, :thetav, :dtheta, :dthetav, :wtheta, :wthetav, :wthetae, :wthetave, :q,
-    :dq, :wq, :wqe, :wqM, :qsat, :e, :esat, :CO2, :dCO2, :wCO2, :wCO2A, :wCO2R, :wCO2e,
-    :wCO2M, :u, :du, :uw, :v, :dv, :vw, :T2m, :q2m, :u2m, :v2m, :e2m, :esat2m, :thetasurf,
-    :thetavsurf, :qsurf, :ustar, :z0m, :z0h, :Cm, :Cs, :L, :Rib, :Swin, :Swout, :Lwin,
-    :Lwout, :Q, :cc, :ra, :rs, :H, :LE, :LEliq, :LEveg, :LEsoil, :LEpot, :LEref, :G, :zlcl,
-    :RH_h, :ac, :M, :dz, :phi, :k_r05, SPECIES...
-)
-
 """
     ModelOutput{T}
 

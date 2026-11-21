@@ -1,21 +1,5 @@
 # Model state: the input, the constants and one state struct per component.
 
-const ε = 0.622     # ratio of the molar masses of water vapor and dry air [-]
-const VIRT = 0.61   # virtual temperature coefficient, Rv / Rd - 1 [-]
-const DAY = 86400   # length of a day [s]
-
-"Saturated vapor pressure [Pa] at temperature `T` [K]."
-esat(T) = 0.611e3 * exp(17.2694 * (T - 273.16) / (T - 35.86))
-
-"Derivative of [`esat`](@ref) with respect to the temperature [Pa K-1]."
-desat(T) = esat(T) * 17.2694 * (273.16 - 35.86) / (T - 35.86)^2
-
-"Saturated specific humidity [kg kg-1] at temperature `T` [K] and pressure `p` [Pa]."
-qsat(T, p) = ε * esat(T) / p
-
-# Factor from a CO2 flux in mg CO2 m-2 s-1 to ppm m s-1.
-mg_to_ppm(c) = c.mair / (c.rho * c.mco2)
-
 "State of the mixed layer: bulk values, surface and entrainment fluxes, top diagnostics."
 Base.@kwdef mutable struct MixedLayerState{T <: Real}
     h::T = NaN              # ABL height [m]
@@ -206,8 +190,7 @@ function init_model(x::ModelInput{T};
         x, constants, plant,
         MixedLayerState{T}(;
             h = x.h, theta = x.theta, dtheta = x.dtheta, wtheta = flux(x.wtheta, x, x.dt, x.theta),
-            q = x.q, dq = x.dq, wq = flux(x.wq, x, x.dt, x.q), CO2 = x.CO2, dCO2 = x.dCO2,
-            wCO2 = flux(x.wCO2, x, x.dt, x.CO2) * mg_to_ppm(constants)),
+            q = x.q, dq = x.dq, wq = flux(x.wq, x, x.dt, x.q), CO2 = x.CO2, dCO2 = x.dCO2),
         WindState{T}(; u = x.u, du = x.du, v = x.v, dv = x.dv),
         RadiationState{T}(; Q = x.Q, cc = x.cc),
         SurfaceLayerState{T}(; ustar = x.ustar, thetasurf = x.theta),

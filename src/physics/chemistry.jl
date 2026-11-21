@@ -81,7 +81,7 @@ NO2 and O3, and `k_r05`, the NO2 photolysis rate. See `ModelInput` for the switc
 """
 function chemistry!(s::ModelState, dt)
     x, c, ml, ch, sp = s.input, s.constants, s.mixed_layer, s.chemistry, s.species
-    sinlea = solar_elevation(x, utc_seconds(x, s.t))
+    sinlea = solar_elevation(x, utc_seconds(x, s.t * x.dt))
     if x.sw_photo_constant && sinlea >= 0
         sinlea = solar_elevation(x, x.tod_ref * 3600)
     end

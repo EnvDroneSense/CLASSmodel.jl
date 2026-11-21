@@ -8,7 +8,6 @@ using CLASSmodel: esat, desat, init_model, step!
     end
 
     @testset "variable_info" begin
-        @test keys(CLASSmodel.VARIABLE_INFO) == CLASSmodel.OUTPUT_NAMES    # every output, no extra
         @test_throws ArgumentError variable_info(:nonsense)
     end
 
