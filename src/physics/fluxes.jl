@@ -52,10 +52,11 @@ for S in (:Sine, :Cosine, :Block)
 end
 Table(values; interval = 3600) = Table(float.(collect(values)), float(interval))
 
-# The value of a flux field of an input with number type `T`: a number becomes a `T`.
-fluxvalue(::Type{T}, v::Real) where {T} = T(v)
-fluxvalue(::Type{T}, v::FluxShape) where {T} = v
-fluxvalue(::Type{T}, v::Tuple) where {T} = map(w -> fluxvalue(T, w), v)
+# The value of a flux or lapse-rate field of an input with number type `T`: a number becomes a `T`.
+fieldvalue(::Type{T}, v::Real) where {T} = T(v)
+fieldvalue(::Type{T}, v::Union{FluxShape, Segments{T}}) where {T} = v
+fieldvalue(::Type{T}, v::Segments) where {T} = Segments{T}(v.z, v.gamma)
+fieldvalue(::Type{T}, v::Tuple) where {T} = map(w -> fieldvalue(T, w), v)
 
 # Fraction of the window that has passed, or nothing outside the window.
 function window(f, t)

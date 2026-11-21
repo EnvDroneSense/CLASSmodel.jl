@@ -62,6 +62,18 @@ end
         @test run(; sw_fixft = true).dtheta == run().dtheta   # no subsidence, no difference
     end
 
+    @testset "lapse rate in segments" begin
+        # one segment, or equal segments, is the constant lapse rate, bit for bit
+        @test run(; gammatheta = Segments([1000.0], [0.006, 0.006])).h == run().h
+        # the layer grows faster once it is above 250 m, where the air is less stable
+        out = run(; gammatheta = Segments([250.0], [0.006, 0.002]))
+        i = findfirst(>(250), out.h)
+        @test out.h[1:i] == run().h[1:i] && out.h[end] > run().h[end]
+        @test_throws ArgumentError Segments([2.0, 1.0], [1.0, 2.0, 3.0])
+        p = mixed_layer_profile(ModelInput(; gammatheta = Segments([300.0], [0.01, 0.0])), run(), 1; ztop = 400)
+        @test p.theta[end] ≈ 288 + 1 + 0.01 * 100
+    end
+
     @testset "diurnal cycle of the fluxes" begin
         # half sine, taken at the end of each step: the amplitude at period / 2, zero after
         x = (; runtime = 2500, wtheta = Sine(0.1; period = 1200), wq = Sine(1e-4; period = 1200))

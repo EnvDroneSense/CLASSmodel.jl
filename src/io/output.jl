@@ -31,11 +31,10 @@ function mixed_layer_profile(
     h = out.h[i]
     ztop > h || throw(ArgumentError("ztop must exceed the boundary-layer height $h"))
     theta, dtheta, q, dq = out.theta[i], out.dtheta[i], out.q[i], out.dq[i]
-    above = ztop - h
     return (
         z = [zero(h), h, h, ztop],
-        theta = [theta, theta, theta + dtheta, theta + dtheta + input.gammatheta * above],
-        q = [q, q, q + dq, q + dq + input.gammaq * above]
+        theta = [theta, theta, theta + dtheta, theta + dtheta + rise(input.gammatheta, h, ztop)],
+        q = [q, q, q + dq, q + dq + rise(input.gammaq, h, ztop)]
     )
 end
 

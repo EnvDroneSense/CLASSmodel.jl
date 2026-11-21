@@ -117,6 +117,8 @@ Notes:
 - `ls_type` is `:js` (Jarvis-Stewart) or `:ags` (A-Gs); `c3c4` is `:c3` or `:c4`.
 - `wtheta`, `wq`, `wCO2` and each entry of `wC` take a number or a [`FluxShape`](@ref), for
   example `wtheta = Sine(0.1; period = 43200)`.
+- `gammatheta`, `gammaq`, `gammaCO2`, `gammau` and `gammav` take a number or [`Segments`](@ref), a
+  lapse rate that changes with height, for example `Segments([1500.0], [0.006, 0.002])`.
 - `wCO2` is in mg CO2 m-2 s-1 (converted with `mair / (rho * mco2)`).
 - `c_beta = 0` is a linear water stress response.
 - The 22 species of `CLASSmodel.SPECIES` are in ppb. `Inert` takes part in no reaction: it is the
@@ -157,23 +159,23 @@ Base.@kwdef struct ModelInput{T <: Real}
     # heat
     theta::T = 288              # initial mixed-layer potential temperature [K]
     dtheta::T = 1               # initial temperature jump at h [K]
-    gammatheta::T = 0.006       # free atmosphere potential temperature lapse rate [K m-1]
+    gammatheta::Union{T, Segments{T}} = 0.006       # free atmosphere potential temperature lapse rate [K m-1]
     advtheta::T = 0             # advection of heat [K s-1]
     wtheta::Union{T, FluxShape} = 0.1    # surface kinematic heat flux [K m s-1]
 
     # moisture
     q::T = 0.008                # initial mixed-layer specific humidity [kg kg-1]
     dq::T = -0.001              # initial specific humidity jump at h [kg kg-1]
-    gammaq::T = 0               # free atmosphere specific humidity lapse rate [kg kg-1 m-1]
+    gammaq::Union{T, Segments{T}} = 0.0              # free atmosphere specific humidity lapse rate [kg kg-1 m-1]
     advq::T = 0                 # advection of moisture [kg kg-1 s-1]
     wq::Union{T, FluxShape} = 0.1e-3     # surface kinematic moisture flux [kg kg-1 m s-1]
 
     # CO2
     CO2::T = 422                # initial mixed-layer CO2 [ppm]
     dCO2::T = -44               # initial CO2 jump at h [ppm]
-    gammaCO2::T = 0             # free atmosphere CO2 lapse rate [ppm m-1]
+    gammaCO2::Union{T, Segments{T}} = 0.0            # free atmosphere CO2 lapse rate [ppm m-1]
     advCO2::T = 0               # advection of CO2 [ppm s-1]
-    wCO2::Union{T, FluxShape} = 0        # surface kinematic CO2 flux [mg CO2 m-2 s-1, see notes]
+    wCO2::Union{T, FluxShape} = 0.0      # surface kinematic CO2 flux [mg CO2 m-2 s-1, see notes]
 
     # chemical species, in the order of SPECIES
     C::NTuple{NSPECIES, T} = SPECIES_C0                       # initial mixing ratio [ppb]
@@ -197,11 +199,11 @@ Base.@kwdef struct ModelInput{T <: Real}
     # wind
     u::T = 6                    # initial mixed-layer u-wind speed [m s-1]
     du::T = 4                   # initial u-wind jump at h [m s-1]
-    gammau::T = 0               # free atmosphere u-wind lapse rate [s-1]
+    gammau::Union{T, Segments{T}} = 0.0              # free atmosphere u-wind lapse rate [s-1]
     advu::T = 0                 # advection of u-wind [m s-2]
     v::T = -4                   # initial mixed-layer v-wind speed [m s-1]
     dv::T = 4                   # initial v-wind jump at h [m s-1]
-    gammav::T = 0               # free atmosphere v-wind lapse rate [s-1]
+    gammav::Union{T, Segments{T}} = 0.0              # free atmosphere v-wind lapse rate [s-1]
     advv::T = 0                 # advection of v-wind [m s-2]
 
     # surface layer
@@ -252,7 +254,8 @@ Base.@kwdef struct ModelInput{T <: Real}
     dz_h::T = 150               # transition layer thickness [m]
 
     function ModelInput{T}(args...) where {T <: Real}
-        input = new{T}((n in (:wtheta, :wq, :wCO2, :wC) ? fluxvalue(T, v) : v
+        special = (:wtheta, :wq, :wCO2, :wC, :gammatheta, :gammaq, :gammaCO2, :gammau, :gammav)
+        input = new{T}((n in special ? fieldvalue(T, v) : v
         for (n, v) in zip(fieldnames(ModelInput), args))...)
         validate(input)
         return input

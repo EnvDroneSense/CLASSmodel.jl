@@ -26,6 +26,8 @@ An entry outside "Changes to model results" leaves results unchanged.
 
 ### Features
 
+- `Segments(z, gamma)`: a lapse rate that changes with height for `gammatheta`, `gammaq`,
+  `gammaCO2`, `gammau` and `gammav`. `mixed_layer_profile` follows the segments.
 - Surface flux shapes `Sine`, `Cosine`, `Block`, `Table`, `Sun` and `Deposition` for `wtheta`,
   `wq`, `wCO2` and each entry of `wC`. `Sine` is zero outside its window.
 

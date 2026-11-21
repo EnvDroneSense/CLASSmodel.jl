@@ -28,6 +28,18 @@ out = run_model(x)
 (H = maximum(out.H), LE = maximum(out.LE), wCO2A = minimum(out.wCO2A))
 ```
 
+## Lapse rate that changes with height
+
+`gammatheta`, `gammaq`, `gammaCO2`, `gammau` and `gammav` take a number or
+[`Segments`](@ref)`(z, gamma)`. `gamma[i]` holds below `z[i]` [m] and `gamma[end]` above
+`z[end]`, so `gamma` has one entry more than the ascending `z`. The lapse rate is the one at
+the height `h` of the mixed layer.
+
+```@example quickstart
+x = ModelInput(; runtime = 3 * 3600, gammatheta = Segments([1500.0], [0.006, 0.002]))
+run_model(x).h[end]
+```
+
 ## Surface fluxes that change in time
 
 Without `sw_ls`, `wtheta` and `wq` are prescribed. `wtheta`, `wq`, `wCO2` and each entry of

@@ -124,11 +124,11 @@ function mixed_layer!(s::ModelState)
 
     wrel_ft = wrel + ws_ft
     ml.thetatend, ml.dthetatend = scalar_tendencies(
-        ml.wtheta, ml.wthetae, 0, x.advtheta, x.gammatheta, ml.h, wrel_ft)
+        ml.wtheta, ml.wthetae, 0, x.advtheta, lapse(x.gammatheta, ml.h), ml.h, wrel_ft)
     ml.qtend, ml.dqtend = scalar_tendencies(
-        ml.wq, ml.wqe, cu.wqM, x.advq, x.gammaq, ml.h, wrel_ft)
+        ml.wq, ml.wqe, cu.wqM, x.advq, lapse(x.gammaq, ml.h), ml.h, wrel_ft)
     ml.CO2tend, ml.dCO2tend = scalar_tendencies(
-        ml.wCO2, ml.wCO2e, cu.wCO2M, x.advCO2, x.gammaCO2, ml.h, wrel_ft)
+        ml.wCO2, ml.wCO2e, cu.wCO2M, x.advCO2, lapse(x.gammaCO2, ml.h), ml.h, wrel_ft)
     sp = s.species
     for i in 1:NSPECIES
         sp.wCe[i] = -ml.we * sp.dC[i]
@@ -141,8 +141,8 @@ function mixed_layer!(s::ModelState)
         w.utend = -x.fc * w.dv + (sl.uw + ml.we * w.du) / ml.h + x.advu
         w.vtend = x.fc * w.du + (sl.vw + ml.we * w.dv) / ml.h + x.advv
 
-        w.dutend = x.gammau * wrel - w.utend
-        w.dvtend = x.gammav * wrel - w.vtend
+        w.dutend = lapse(x.gammau, ml.h) * wrel - w.utend
+        w.dvtend = lapse(x.gammav, ml.h) * wrel - w.vtend
     end
 
     if cu.ac > 0 || ml.lcl - ml.h < 300
