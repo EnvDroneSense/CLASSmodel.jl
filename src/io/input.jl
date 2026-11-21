@@ -4,14 +4,13 @@
 const SPECIES = (:Inert, :O3, :O1D, :NO, :NO2, :CH4, :CH2O, :CH3O2, :MVK, :ISO, :RO2, :OH,
     :HO2, :CO, :H2O, :Product, :O2, :N2, :HNO3, :H2O2, :NO3, :N2O5)
 const NSPECIES = length(SPECIES)
-species_index(name) = something(findfirst(==(name), SPECIES))
 # default mixing ratios [ppb] and surface fluxes [ppb m s-1]
-const SPECIES_ZERO = ntuple(_ -> 0.0, NSPECIES)
-const SPECIES_C0 = float.((
+const SPECIES_ZERO = zeros(NSPECIES)
+const SPECIES_C0 = float.([
     0, 30, 0, 0.4, 0.6, 1724, 0, 0, 0, 0, 0, 0, 0, 100, 0, 0, 0.2e9, 0.8e9,
-    0, 0, 0, 0))
-const SPECIES_WC0 = float.((
-    1, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+    0, 0, 0, 0])
+const SPECIES_WC0 = float.([
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
 
 """
     PlantType
@@ -104,7 +103,7 @@ fluxes. The input is checked when it is constructed (see [`validate`](@ref)).
 | switches | `sw_ml`, `sw_shearwe`, `sw_fixft`, `sw_wind`, `sw_sl`, `sw_rad`, `sw_ls`, `sw_sea`, `sw_cu`, `sw_curad` |
 | mixed layer | `h`, `Ps`, `divU`, `fc`, `beta` |
 | heat, moisture, CO2 | `theta`, `dtheta`, `gammatheta`, `advtheta`, `wtheta`, `q`, `dq`, `gammaq`, `advq`, `wq`, `CO2`, `dCO2`, `gammaCO2`, `advCO2`, `wCO2` |
-| chemical species | `C`, `dC`, `gammaC`, `advC`, `wC` (one value for each of the 22 species) |
+| chemical species | `species`, `C`, `dC`, `gammaC`, `advC`, `wC` (one value for each of `species`) |
 | chemistry | `sw_chem`, `sw_chem_constant`, `sw_photo_constant`, `reactions`, `tod_ref`, `Tcbl_ref`, `Tft_ref`, `qcbl_ref`, `qft_ref`, `P_ref` |
 | wind | `u`, `du`, `gammau`, `advu`, `v`, `dv`, `gammav`, `advv` |
 | surface layer | `ustar`, `z0m`, `z0h` |
@@ -161,12 +160,13 @@ Base.@kwdef struct ModelInput{T <: Real}
     advCO2::T = 0               # advection of CO2 [ppm s-1]
     wCO2::Union{T, FluxShape} = 0.0      # surface kinematic CO2 flux [mg CO2 m-2 s-1, see notes]
 
-    # chemical species, in the order of SPECIES
-    C::NTuple{NSPECIES, T} = SPECIES_C0                       # initial mixing ratio [ppb]
-    dC::NTuple{NSPECIES, T} = SPECIES_ZERO                    # initial jump at h [ppb]
-    gammaC::NTuple{NSPECIES, T} = SPECIES_ZERO                # lapse rate above h [ppb m-1]
-    advC::NTuple{NSPECIES, T} = SPECIES_ZERO                  # advection [ppb s-1]
-    wC::NTuple{NSPECIES, Union{T, FluxShape}} = SPECIES_WC0   # surface flux [ppb m s-1]
+    # chemical species: the names and, in that order, one value for each
+    species::Vector{Symbol} = collect(SPECIES)
+    C::Vector{T} = SPECIES_C0                       # initial mixing ratio [ppb]
+    dC::Vector{T} = SPECIES_ZERO                    # initial jump at h [ppb]
+    gammaC::Vector{T} = SPECIES_ZERO                # lapse rate above h [ppb m-1]
+    advC::Vector{T} = SPECIES_ZERO                  # advection [ppb s-1]
+    wC::Vector{Union{T, FluxShape}} = SPECIES_WC0   # surface flux [ppb m s-1]
 
     # chemistry, used with sw_chem
     sw_chem_constant::Bool = true   # rates at the reference state instead of the mixed layer
@@ -260,6 +260,10 @@ function validate(x::ModelInput)
 
     foreach(name -> check_finite(name, getfield(x, name)), fieldnames(typeof(x)))
     check(all(>=(0), x.C), :C, ">= 0")
+    for (name, v) in ((:C, x.C), (:dC, x.dC), (:gammaC, x.gammaC), (:advC, x.advC), (:wC, x.wC))
+        length(v) == length(x.species) ||
+            throw(ArgumentError("$name needs one value for each species"))
+    end
     foreach(positive, (:runtime, :dt, :h, :Ps, :P_ref, :Tcbl_ref, :Tft_ref, :z0m, :z0h))
     foreach(nonnegative, (:qcbl_ref, :qft_ref))
     check(0 <= x.tod_ref <= 24, :tod_ref, "in [0, 24]")
@@ -270,7 +274,7 @@ function validate(x::ModelInput)
     x.sw_ml && encroachment(x) && !all(>(0), lapse_values(x.gammatheta)) &&
         throw(ArgumentError("encroachment needs gammatheta > 0"))
     foreach(fraction, (:cc, :cveg, :c_beta))
-    x.sw_chem && foreach(check_reaction, x.reactions)
+    x.sw_chem && foreach(rx -> check_reaction(rx, x.species), x.reactions)
     x.ls_type in (:js, :ags) ||
         throw(ArgumentError("ls_type must be :js or :ags, got :$(x.ls_type)"))
     x.c3c4 in (:c3, :c4) || throw(ArgumentError("c3c4 must be :c3 or :c4, got :$(x.c3c4)"))

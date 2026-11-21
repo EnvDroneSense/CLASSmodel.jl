@@ -6,8 +6,9 @@ using CLASSmodel
 
 ## Chemical species
 
-The model carries 22 species. Their names are in `CLASSmodel.SPECIES`. The input tuples `C`, `dC`,
-`gammaC`, `advC` and `wC` hold one value for each species, in that order. The mixing
+The input `species` lists the species; the default is the 22 species of `CLASSmodel.SPECIES`. The
+vectors `C`, `dC`, `gammaC`, `advC` and `wC` hold one value for each species, in that order.
+With another list, give all five vectors and the `reactions` that use those species. The mixing
 ratios are in ppb and the surface fluxes are in ppb m s-1. The output has one column for each
 species. The species are transported like CO2.
 
@@ -25,7 +26,7 @@ out = run_model(x)
 
 ## List of species
 
-The position in the table is the position in the input tuples `C`, `dC`, `gammaC`, `advC`
+The position in the table is the position in the input vectors `C`, `dC`, `gammaC`, `advC`
 and `wC`.
 
 ```@eval

@@ -7,7 +7,7 @@ Time series of one run: a `NamedTuple` with one vector per variable (a table in 
 of Tables.jl). `t` is the time in hours since midnight of the start day, so it exceeds 24
 in runs longer than a day. `wCO2*` are in mg CO2 m-2 s-1.
 """
-const ModelOutput{T} = NamedTuple{OUTPUT_NAMES, NTuple{length(OUTPUT_NAMES), Vector{T}}}
+const ModelOutput{T} = NamedTuple{N, V} where {N, V <: Tuple{Vararg{Vector{T}}}}
 
 """
     mixed_layer_profile(input, out, i; ztop = 2 * out.h[i]) -> NamedTuple
@@ -28,8 +28,10 @@ function mixed_layer_profile(
     )
 end
 
-function empty_output(::Type{T}, n::Integer) where {T}
-    ModelOutput{T}(ntuple(_ -> zeros(T, n), length(OUTPUT_NAMES)))
+# The names are only known at run time (the species), so the type of the result is too.
+function empty_output(::Type{T}, n::Integer, species) where {T}
+    names = Tuple([collect(keys(BASE_INFO)); species])
+    return NamedTuple{names}(ntuple(_ -> zeros(T, n), length(names)))
 end
 
 "Write the current state into row `s.t + 1` of `out`."
@@ -123,8 +125,9 @@ function store!(out::ModelOutput, s::ModelState)
     out.k_r05[i] = s.chemistry.k_r05
 
     cols = values(out)   # the species are the last columns
-    for k in 1:NSPECIES
-        cols[end - NSPECIES + k][i] = s.species.C[k]
+    n = length(s.species.C)
+    for k in 1:n
+        cols[end - n + k][i] = s.species.C[k]
     end
     return out
 end

@@ -64,7 +64,11 @@ function run_model(x::ModelInput{T}; progress = nothing, progress_every::Integer
         kwargs...) where {T}
     s = init_model(x; kwargs...)
     n = floor(Int, x.runtime / x.dt)
-    out = empty_output(T, n)
+    return run_loop(s, empty_output(T, n, x.species), n, progress, progress_every)
+end
+
+# The loop is a separate function so that it is compiled for the concrete type of `out`.
+function run_loop(s::ModelState, out, n, progress, progress_every)
     for i in 1:n
         compute!(s)
         store!(out, s)

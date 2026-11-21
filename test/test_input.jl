@@ -13,7 +13,7 @@
         @test keys(CLASSmodel.INPUT_INFO) == fieldnames(ModelInput)   # every field, no extra
         for name in fieldnames(ModelInput)
             info, v = input_info(name), getfield(x, name)
-            if v isa Tuple    # one value for each species
+            if v isa Vector{<:Union{Real, FluxShape}}    # one value for each species
                 @test hasproperty(info, :options) ? all(in(info.options), v) :
                       all(e -> info.min <= e <= info.max, v)
             elseif v isa Symbol
@@ -41,7 +41,7 @@
             (; theta = NaN), (; wtheta = Sine(NaN)),
             (; dtheta = 0, beta = 0, dq = 0, gammatheta = 0),   # no inversion needs a lapse rate
             (; sw_chem = true, reactions = [Reaction(:x, :nonsense, [:O3 => 1], [:Product => 1.0], ntuple(_ -> 1.0, 7))]),
-            (; C = ntuple(_ -> -1.0, 22)), (; wC = ntuple(_ -> NaN, 22)),
+            (; C = map(_ -> -1.0, 1:22)), (; wC = map(_ -> NaN, 1:22)),
             (; tod_ref = 25), (; P_ref = 0), (; qcbl_ref = -0.1)
         )
         for kw in invalid

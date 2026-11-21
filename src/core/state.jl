@@ -133,7 +133,7 @@ Base.@kwdef mutable struct SpeciesState{T <: Real}
 end
 
 function SpeciesState(x::ModelInput{T}) where {T}
-    return SpeciesState{T}(collect(x.C), collect(x.dC), (zeros(T, NSPECIES) for _ in 1:5)...)
+    return SpeciesState{T}(copy(x.C), copy(x.dC), (zeros(T, length(x.species)) for _ in 1:5)...)
 end
 
 "State of the chemistry: the scheme, the rate constants, the solver work arrays, diagnostics."
@@ -149,10 +149,10 @@ mutable struct ChemistryState{T <: Real}
 end
 
 function ChemistryState(x::ModelInput{T}) where {T}
-    scheme = x.sw_chem ? ChemistryScheme{T}(x.reactions) : ChemistryScheme{T}(Reaction[])
-    n = length(scheme.reactions)
+    scheme = x.sw_chem ? ChemistryScheme{T}(x.species, x.reactions) : ChemistryScheme{T}(x.species, Reaction[])
+    n, m = length(scheme.reactions), length(x.species)
     return ChemistryState{T}(scheme, zeros(T, n), zeros(T, n),
-        zeros(T, NSPECIES), zeros(T, NSPECIES), zeros(T, NSPECIES), zero(T), zero(T))
+        zeros(T, m), zeros(T, m), zeros(T, m), zero(T), zero(T))
 end
 
 """

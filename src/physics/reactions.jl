@@ -31,12 +31,12 @@ end
 const FORMS = (:photolysis, :constant, :arrhenius, :falloff, :decomposition, :ho2, :power)
 
 # Throw an ArgumentError for a reaction that the scheme cannot build or evaluate.
-function check_reaction(rx::Reaction)
+function check_reaction(rx::Reaction, species)
     rx.form in FORMS || throw(ArgumentError("reaction $(rx.name): form must be one of $FORMS"))
     length(rx.inputs) <= 2 ||
         throw(ArgumentError("reaction $(rx.name) has more than two input species"))
     for (n, _) in Iterators.flatten((rx.inputs, rx.outputs))
-        n in SPECIES || throw(ArgumentError("reaction $(rx.name): unknown species $n"))
+        n in species || throw(ArgumentError("reaction $(rx.name): unknown species $n"))
     end
 end
 
@@ -118,34 +118,42 @@ end
 
 # The reactions that run and, for each species, the terms of its production and loss.
 struct ChemistryScheme{T}
+    species::Vector{Symbol}
     reactions::Vector{Reaction}
     terms::Vector{Vector{Term{T}}}
     solved::Vector{Int}
 end
 
 """
-    ChemistryScheme{T}(reactions)
+    ChemistryScheme{T}(species, reactions)
 
-Build the production and loss terms of `reactions`. The loss of an input species is the
+Build the production and loss terms of `reactions` for the list of `species`. The loss of an input species is the
 reaction rate divided by that species, so that the solver can treat it implicitly.
 """
-function ChemistryScheme{T}(reactions::Vector{Reaction}) where {T}
-    terms = [Term{T}[] for _ in 1:NSPECIES]
+function ChemistryScheme{T}(species::Vector{Symbol}, reactions::Vector{Reaction}) where {T}
+    index(n) = something(findfirst(==(n), species))
+    terms = [Term{T}[] for _ in species]
     function term(production, r, coef, factors)
         f = filter(>(0) ∘ last, factors)
         f = [f; fill((1, 0), 2 - length(f))]
         return Term{T}(production, r, coef, f[1][1], f[1][2], f[2][1], f[2][2])
     end
     for (r, rx) in enumerate(reactions)
-        inputs = [(species_index(n), c) for (n, c) in rx.inputs]
+        inputs = [(index(n), c) for (n, c) in rx.inputs]
         for (k, (i, c)) in enumerate(inputs)
             factors = [(j, kk == k ? e - 1 : e) for (kk, (j, e)) in enumerate(inputs)]
             push!(terms[i], term(false, r, T(c), factors))
         end
         for (n, c) in rx.outputs
-            push!(terms[species_index(n)], term(true, r, T(c), inputs))
+            push!(terms[index(n)], term(true, r, T(c), inputs))
         end
     end
-    solved = [i for i in 1:NSPECIES if !isempty(terms[i]) && !(SPECIES[i] in NOT_SOLVED)]
-    return ChemistryScheme{T}(reactions, terms, solved)
+    solved = [i for i in eachindex(species) if !isempty(terms[i]) && !(species[i] in NOT_SOLVED)]
+    return ChemistryScheme{T}(species, reactions, terms, solved)
+end
+
+# Index of species `name` in the scheme, or 0 when the scheme does not have it.
+function species_index(scheme::ChemistryScheme, name)
+    i = findfirst(==(name), scheme.species)
+    return i === nothing ? 0 : i
 end

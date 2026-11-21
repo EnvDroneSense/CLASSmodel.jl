@@ -20,6 +20,9 @@ An entry outside "Changes to model results" leaves results unchanged.
 
 ### Breaking changes
 
+- The species are an input: `species` lists them (default the 22 of `CLASSmodel.SPECIES`). `C`, `dC`,
+  `gammaC`, `advC` and `wC` are vectors, not tuples, with one value for each species. The output has
+  one column for each species. `run_model` returns a `NamedTuple` whose names depend on `species`.
 - The inputs `sw_reactions` and `stocoef` are removed. The input `reactions` is a vector of `Reaction`
   (default `CLASSmodel.REACTIONS`). Leave a reaction out to switch it off; the OH yield of r19 is the
   coefficient of OH in its `Reaction`. `phi` and `k_r05` are `NaN` when the scheme has no `:r05` or `:r21`.

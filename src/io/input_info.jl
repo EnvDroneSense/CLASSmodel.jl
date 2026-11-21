@@ -41,6 +41,7 @@ const INPUT_INFO = (
     gammaCO2 = num("CO2 lapse rate", "ppm m-1", "γCO2", -0.1, 0.1),
     advCO2 = num("CO2 advection", "ppm s-1", "advCO2", -0.01, 0.01),
     wCO2 = num("Surface CO2 flux", "mg CO2 m-2 s-1", "w'CO2'ₛ", -0.5, 0.5),
+    species = (; title = "Chemical species", unit = "-", symbol = "species"),
     C = num("Initial species mixing ratio", "ppb", "C", 0, 1e9),
     dC = num("Initial species jump", "ppb", "ΔC", -100, 100),
     gammaC = num("Species lapse rate", "ppb m-1", "γC", -0.1, 0.1),

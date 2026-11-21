@@ -9,6 +9,7 @@ using CLASSmodel: esat, desat, init_model, step!
 
     @testset "variable_info" begin
         @test_throws ArgumentError variable_info(:nonsense)
+        @test variable_info(:X; species = [:X]).unit == "ppb"
     end
 
     @testset "mixed_layer_profile" begin
@@ -66,7 +67,7 @@ using CLASSmodel: esat, desat, init_model, step!
         out = run_model(ModelInput(;
             runtime = 3600, sw_rad = true, sw_sl = true, sw_ls = true,
             sw_cu = true, sw_chem = true, sw_wind = true, ls_type = :ags, wCO2 = 0.1, Wl = 1e-4,
-            dC = ntuple(_ -> 1.0, 22), wC = ntuple(_ -> 1.0, 22)))
+            dC = map(_ -> 1.0, 1:22), wC = map(_ -> 1.0, 1:22)))
         for name in keys(out)
             name in (:wqM, :wCO2M, :M, :ac, :cc) && continue    # zero without clouds
             @test any(!=(0), out[name])

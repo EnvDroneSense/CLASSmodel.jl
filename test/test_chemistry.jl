@@ -1,6 +1,6 @@
 @testset "species and chemistry" begin
     run(; kw...) = run_model(ModelInput(; runtime = 3600, kw...))
-    one_species(i, v) = ntuple(j -> j == i ? v : zero(v), 22)
+    one_species(i, v) = map(j -> j == i ? v : zero(v), 1:22)
 
     @testset "transport" begin
         # the flux of Inert (default 1 ppb m s-1) fills the layer
@@ -11,7 +11,7 @@
         jump = run(; CO2 = 30, dCO2 = 2, dC = one_species(2, 2.0))
         @test jump.O3 ≈ jump.CO2
         # flux mode 1 follows the sine, mode 2 the sun: zero at night, peak at noon
-        only(shape) = ntuple(j -> j == 1 ? shape : 0.0, 22)
+        only(shape) = map(j -> j == 1 ? shape : 0.0, 1:22)
         sine = run(; wC = only(Sine(0.1)))
         @test sine.Inert[2] - sine.Inert[1] ≈ 60 * 0.1 * sin(pi * 60 / 43200) / sine.h[1]
         sun = run(; wC = only(Sun(0.1)), tstart = 0, runtime = 86400)
@@ -38,7 +38,7 @@
         @test d.k_r05[1] == 0 && maximum(d.k_r05) > 0 && count(==(0), d.k_r05) > 400
         # RO2 + HO2 gives OH only with an OH yield in r19
         iso = (;
-            wC = one_species(10, 0.5), C = ntuple(i -> i in (10, 12, 13) ? 1.0 : 0.0, 22))
+            wC = one_species(10, 0.5), C = map(i -> i in (10, 12, 13) ? 1.0 : 0.0, 1:22))
         r = CLASSmodel.REACTIONS[19]
         yield = copy(CLASSmodel.REACTIONS)
         yield[19] = Reaction(r.name, r.form, r.inputs, [:OH => 2.0, :Product => 1.0], r.k)
@@ -50,4 +50,16 @@
         @test_throws ArgumentError chem(; reactions = [Reaction(:bad, :constant,
             [:NO => 1, :O3 => 1, :OH => 1], [:Product => 1.0], r.k)])
     end
+end
+
+@testset "scheme with two species" begin
+    rx = [Reaction(:a, :constant, [:A => 1], [:B => 1.0], (1e-12, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0))]
+    x = ModelInput(; species = [:A, :B], reactions = rx, sw_chem = true, runtime = 600,
+        C = [10.0, 0.0], dC = [0.0, 0.0], gammaC = [0.0, 0.0], advC = [0.0, 0.0], wC = [0.0, 0.0])
+    out = run_model(x)
+    @test keys(out)[end-1:end] == (:A, :B) && out.B[end] > 0
+    @test isnan(out.phi[end]) && out.A[end] + out.B[end] ≈ 10
+    @test_throws ArgumentError ModelInput(; species = [:A, :B], reactions = rx, sw_chem = true)   # 22 values
+    s = CLASSmodel.init_model(x)
+    @inferred CLASSmodel.run_loop(s, CLASSmodel.empty_output(Float64, 3, x.species), 3, nothing, 100)
 end

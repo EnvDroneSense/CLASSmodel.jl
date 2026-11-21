@@ -2,7 +2,6 @@
 
 const MW_AIR = 28.97   # molar mass of dry air [g mol-1]
 const MW_H2O = 18.0    # molar mass of water [g mol-1]
-const I_H2O, I_NO, I_NO2, I_O3 = species_index.((:H2O, :NO, :NO2, :O3))
 # Rate constant of the reaction `name`, or NaN when the scheme does not have it.
 function rate_of(K, scheme::ChemistryScheme, name)
     r = findfirst(rx -> rx.name == name, scheme.reactions)
@@ -52,7 +51,8 @@ end
 function solve_chemistry!(y, y0, c, q, scheme::ChemistryScheme, K, dt)
     copyto!(y0, c)
     copyto!(y, c)
-    y0[I_H2O] = y[I_H2O] = h2o_ppb(q)
+    ih = species_index(scheme, :H2O)
+    ih > 0 && (y0[ih] = y[ih] = h2o_ppb(q))
     for _ in 1:4
         for n in scheme.solved
             P = L = zero(eltype(y))
@@ -101,8 +101,9 @@ function chemistry!(s::ModelState, dt)
     copyto!(sp.C, y)
     K05 = rate_of(ch.Kcbl, scheme, :r05)   # NO2 photolysis
     K21 = rate_of(ch.Kcbl, scheme, :r21)   # NO + O3
-    ch.phi = isnan(K05 + K21) ? K05 + K21 :
-             K05 > 1e-10 && y[I_NO2] > 1e-5 ? K21 * y[I_NO] * y[I_O3] / (K05 * y[I_NO2]) : zero(K05)
+    iNO, iNO2, iO3 = species_index.((scheme,), (:NO, :NO2, :O3))
+    ch.phi = isnan(K05 + K21) || 0 in (iNO, iNO2, iO3) ? oftype(K05, NaN) :
+             K05 > 1e-10 && y[iNO2] > 1e-5 ? K21 * y[iNO] * y[iO3] / (K05 * y[iNO2]) : zero(K05)
     ch.k_r05 = K05
 
     solve_chemistry!(y, ch.y0, ch.fsc, q_ft, scheme, ch.Kft, dt)

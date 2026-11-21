@@ -85,11 +85,13 @@ const VARIABLE_INFO = merge(BASE_INFO,
 const OUTPUT_NAMES = keys(VARIABLE_INFO)
 
 """
-    variable_info(name::Symbol) -> NamedTuple
+    variable_info(name::Symbol; species = SPECIES) -> NamedTuple
 
 Title, unit and symbol of the output variable `name`. A dimensionless variable has unit `"-"`.
+A name in `species` (the species of a scheme) is a mixing ratio in ppb.
 """
-function variable_info(name::Symbol)
-    haskey(VARIABLE_INFO, name) || throw(ArgumentError("unknown output variable :$name"))
-    return VARIABLE_INFO[name]
+function variable_info(name::Symbol; species = SPECIES)
+    haskey(BASE_INFO, name) && return BASE_INFO[name]
+    name in species || throw(ArgumentError("unknown output variable :$name"))
+    return info("$name mixing ratio", "ppb", String(name))
 end

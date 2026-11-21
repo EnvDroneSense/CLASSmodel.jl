@@ -17,7 +17,7 @@ using CLASSmodel: flux
     run(; kw...) = run_model(ModelInput(; runtime = 7200, kw...))
     @test run(; wtheta = Table([0.1, 0.1, 0.1])).h == run().h
     # dry deposition in a layer of fixed height: C decays as exp(-vd t / h)
-    dep = ntuple(j -> j == 2 ? Deposition(0.01) : 0.0, 22)
+    dep = map(j -> j == 2 ? Deposition(0.01) : 0.0, 1:22)
     out = run_model(ModelInput(; runtime = 3600, dt = 1, wtheta = 0, wq = 0, wC = dep))
     @test out.O3[end] ≈ 30 * exp(-0.01 * 3599 / 200) rtol = 1e-4
     @test all(==(200), out.h)

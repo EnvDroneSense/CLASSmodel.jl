@@ -135,7 +135,7 @@ function mixed_layer!(s::ModelState)
     ml.CO2tend, ml.dCO2tend = scalar_tendencies(
         ml.wCO2, ml.wCO2e, cu.wCO2M, x.advCO2, lapse(x.gammaCO2, ml.h), ml.h, wrel_ft)
     sp = s.species
-    for i in 1:NSPECIES
+    for i in eachindex(sp.C)
         sp.wCe[i] = -ml.we * sp.dC[i]
         sp.Ctend[i], sp.dCtend[i] = scalar_tendencies(
             sp.wC[i], sp.wCe[i], sp.wCM[i], x.advC[i], x.gammaC[i], ml.h, wrel_ft)

@@ -58,7 +58,7 @@ end
 # Throw if a number inside a field of an input is not finite (a Bool and other types pass).
 check_finite(name, v::Real) = v isa Bool || isfinite(v) ||
     throw(ArgumentError("$name must be finite, got $v"))
-check_finite(name, v::Union{Tuple, AbstractVector{<:Real}}) = foreach(w -> check_finite(name, w), v)
+check_finite(name, v::Union{Tuple, AbstractVector}) = foreach(w -> check_finite(name, w), v)
 check_finite(name, v::FluxShape) = foreach(n -> check_finite(name, getfield(v, n)), fieldnames(typeof(v)))
 check_finite(name, v) = nothing
 
@@ -70,6 +70,8 @@ fieldvalue(::Type{T}, v::Segments) where {T} = Segments{T}(v.z, v.gamma)
 function fieldvalue(::Type{T}, ::Type{F}, v) where {T, F}
     F !== T && T <: F && return fieldvalue(T, v)
     F <: Tuple && v isa Tuple && return map(w -> fieldvalue(T, eltype(F), w), v)
+    F <: AbstractVector && eltype(F) <: Union{Real, FluxShape} && v isa AbstractVector &&
+        return eltype(F)[fieldvalue(T, eltype(F), w) for w in v]
     return v
 end
 
