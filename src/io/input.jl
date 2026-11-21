@@ -112,22 +112,8 @@ fluxes. The input is checked when it is constructed (see [`validate`](@ref)).
 | land surface | `ls_type`, `c3c4`, `c_beta`, soil (`wg`, `w2`, `Tsoil`, `T2`, `a`, `b`, `p`, `CGsat`, `wsat`, `wfc`, `wwilt`, `C1sat`, `C2ref`), vegetation (`LAI`, `gD`, `rsmin`, `rssoilmin`, `alpha`, `cveg`, `Wmax`, `Wl`), `Ts`, `Lambda` |
 | cumulus | `dz_h` |
 
-Notes:
-- `ls_type` is `:js` (Jarvis-Stewart) or `:ags` (A-Gs); `c3c4` is `:c3` or `:c4`.
-- `wtheta`, `wq`, `wCO2` and each entry of `wC` take a number or a [`FluxShape`](@ref), for
-  example `wtheta = Sine(0.1; period = 43200)`.
-- `gammatheta`, `gammaq`, `gammaCO2`, `gammau` and `gammav` take a number or [`Segments`](@ref), a
-  lapse rate that changes with height, for example `Segments([1500.0], [0.006, 0.002])`.
-- `wCO2` is in mg CO2 m-2 s-1 (converted with `mair / (rho * mco2)`).
-- `c_beta = 0` is a linear water stress response.
-- The 22 species of `CLASSmodel.SPECIES` are in ppb. `Inert` takes part in no reaction: it is the
-  passive scalar. Without `sw_chem` all species are passive.
-- `sw_chem` runs the `reactions`, a vector of [`Reaction`](@ref) (see `chemistry!`). `sw_chem_constant`
-  takes pressure, temperature and humidity from the reference state (`P_ref`, `Tcbl_ref`, `Tft_ref`,
-  `qcbl_ref`, `qft_ref`: mixed layer and free troposphere) and not from the mixed layer.
-  `sw_photo_constant` fixes the sun of the photolysis at the hour `tod_ref` [h UTC] in the day.
-- `sw_curad` has an effect only with `sw_cu` and `sw_rad`; without it, radiation uses `cc`.
-- `sw_sea` has an effect only with `sw_ls`: fixed `Ts`, open-water evaporation, no soil.
+Notes: `wtheta`, `wq`, `wCO2` and each entry of `wC` take a number or a [`FluxShape`](@ref). The `gamma*` fields
+take a number or [`Segments`](@ref). `wCO2` is in mg CO2 m-2 s-1. See the switches and chemistry pages.
 """
 Base.@kwdef struct ModelInput{T <: Real}
     # time
@@ -261,22 +247,8 @@ ModelInput(args...) = ModelInput{Float64}(args...)
 """
     validate(input::ModelInput)
 
-Throw an `ArgumentError` if `input` cannot be run. Called by the
-[`ModelInput`](@ref) constructor. Checks:
-
-- every numeric field is finite
-- positive time step, run time, `h`, `Ps`, `z0m`, `z0h`
-- `dtheta != 0` when the mixed layer or the cumulus scheme is on; without cumulus,
-  `dtheta = 0` with `beta = 0` and `dq = 0` selects encroachment
-- `0 <= cc <= 1`, `0 <= cveg <= 1`, `0 <= c_beta <= 1`
-- `C >= 0` for every species
-- `0 <= tod_ref <= 24`, `P_ref`, `Tcbl_ref`, `Tft_ref` > 0, `qcbl_ref`, `qft_ref` >= 0
-- `ls_type` and `c3c4` have a known value
-- with `sw_ls` and not `sw_sea`: `LAI`, `Wmax`, `wg` > 0, `0 < w2 < wsat` and `wwilt < wfc <= wsat`
-- with `sw_cu`: `dz_h > 0`
-- with `sw_ls`: `wtheta` and `wq` are numbers (the first guess of the fluxes), not shapes
-- A-Gs (`sw_ls` without `sw_sea`, `ls_type = :ags`) needs `sw_rad`, because it uses the
-  incoming shortwave radiation
+Throw an `ArgumentError` if `input` cannot be run. Called by the [`ModelInput`](@ref) constructor.
+The checks are in the code below: finite values, ranges, and the switch combinations that need each other.
 """
 function validate(x::ModelInput)
     function check(ok, name, rule)

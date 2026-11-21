@@ -194,8 +194,7 @@ mutable struct ModelState{T <: Real}
 end
 
 """
-    init_model(input; constants = PhysicalConstants{T}(), plant = AGsParameters{T}(input.c3c4))
-        -> ModelState
+    init_model(input; constants = PhysicalConstants{T}(), plant = ...) -> ModelState
 
 Build the initial state from `input` and compute the initial diagnostics. `plant` holds the
 A-Gs parameters; the default is the preset of `input.c3c4`.

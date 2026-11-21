@@ -101,7 +101,8 @@ function chemistry!(s::ModelState, dt)
     @. ch.fsc = sp.C + sp.dC   # before C changes
     solve_chemistry!(y, ch.y0, sp.C, q_cbl, scheme, ch.Kcbl, dt)
     copyto!(sp.C, y)
-    K05, K21 = rate_of(ch.Kcbl, scheme, :r05), rate_of(ch.Kcbl, scheme, :r21)   # NO2 photolysis, NO + O3
+    K05 = rate_of(ch.Kcbl, scheme, :r05)   # NO2 photolysis
+    K21 = rate_of(ch.Kcbl, scheme, :r21)   # NO + O3
     ch.phi = isnan(K05 + K21) ? K05 + K21 :
              K05 > 1e-10 && y[I_NO2] > 1e-5 ? K21 * y[I_NO] * y[I_O3] / (K05 * y[I_NO2]) : zero(K05)
     ch.k_r05 = K05

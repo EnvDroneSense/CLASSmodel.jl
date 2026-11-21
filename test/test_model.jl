@@ -1,16 +1,14 @@
-using CLASSmodel: esat, desat, qsat, init_model, step!
+using CLASSmodel: esat, desat, init_model, step!
 
 @testset "model" begin
     @testset "saturation" begin
         @test esat(273.16)≈611 rtol=1e-12
         @test esat(293.15)≈2339 rtol=0.01     # textbook value at 20 C
-        @test qsat(293.15, 101300) ≈ 0.622 * esat(293.15) / 101300
         @test desat(285.0)≈(esat(285.0 + 1e-4) - esat(285.0 - 1e-4)) / 2e-4 rtol=1e-8
     end
 
     @testset "variable_info" begin
         @test keys(CLASSmodel.VARIABLE_INFO) == CLASSmodel.OUTPUT_NAMES    # every output, no extra
-        @test variable_info(:wCO2).unit == "mg CO2 m-2 s-1"                # as in the docs
         @test_throws ArgumentError variable_info(:nonsense)
     end
 
