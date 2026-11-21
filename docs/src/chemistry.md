@@ -7,31 +7,26 @@ using CLASSmodel
 ## Chemical species
 
 The model carries 22 species. Their names are in `CLASSmodel.SPECIES`. The input tuples `C`, `dC`,
-`gammaC`, `advC`, `wC` and `sw_wC` hold one value for each species, in that order. The mixing
+`gammaC`, `advC` and `wC` hold one value for each species, in that order. The mixing
 ratios are in ppb and the surface fluxes are in ppb m s-1. The output has one column for each
 species. The species are transported like CO2.
 
-`sw_wC` sets the surface flux of each species:
-
-| `sw_wC` | Surface flux |
-|:--------|:-------------|
-| 0 | constant `wC` |
-| 1 | `wC * sin(pi t / sinperiod)` |
-| 2 | `wC` times the solar elevation divided by its value at noon, zero at night |
+Each entry of `wC` is a number (constant flux) or a [`FluxShape`](@ref), for example
+`Sun(0.1)` or `Deposition(0.01)`. See [Surface fluxes that change in time](@ref).
 
 `Inert` takes part in no reaction. It is the passive scalar. Without `sw_chem`, all species are
 passive.
 
 ```@example quickstart
-x = ModelInput(; runtime = 3600, sw_wtheta = true, sinperiod = 12 * 3600)
+x = ModelInput(; runtime = 3600, wtheta = Sine(0.1; period = 12 * 3600))
 out = run_model(x)
 (Inert = out.Inert[end], CH4 = out.CH4[end])
 ```
 
 ## List of species
 
-The position in the table is the position in the input tuples `C`, `dC`, `gammaC`, `advC`,
-`wC` and `sw_wC`.
+The position in the table is the position in the input tuples `C`, `dC`, `gammaC`, `advC`
+and `wC`.
 
 ```@eval
 using CLASSmodel, Markdown

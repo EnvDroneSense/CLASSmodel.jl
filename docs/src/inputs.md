@@ -11,7 +11,7 @@ The slider range is not a validity rule. `validate` checks the input when `Model
 constructed and throws an `ArgumentError` if the input cannot be run.
 
 ```@example quickstart
-input_info(:sinperiod)
+input_info(:wtheta)
 ```
 
 ## Input fields

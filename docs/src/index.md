@@ -22,7 +22,7 @@ out = run_model(x)
 
 | Page | Content |
 |:-----|:--------|
-| [Switches](switches.md) | the components and their switches, the diurnal cycle of the fluxes |
+| [Switches](switches.md) | the components and their switches, surface fluxes that change in time |
 | [Species and chemistry](chemistry.md) | the 22 species, their surface fluxes, the reactions |
 | [Inputs](inputs.md) | all fields of `ModelInput` with unit and default |
 | [Outputs](outputs.md) | all output columns with unit, the mixed-layer profile |
